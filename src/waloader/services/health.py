@@ -7,6 +7,7 @@ Probe layers: process alive (pid+create_time) -> TCP port open -> HTTP
 from __future__ import annotations
 
 import socket
+import sqlite3
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -64,3 +65,64 @@ def probe_app(
     if not probe_http(health_url(config, app), timeout=config.health.http_timeout_seconds):
         return ProbeResult(False, "HTTP health endpoint not responding")
     return ProbeResult(True, "")
+
+
+# --- periodic health check service ---------------------------------------
+
+
+@dataclass(frozen=True)
+class CheckOutcome:
+    slug: str
+    healthy: bool
+    reason: str
+    marked_failed: bool
+    email_sent: bool
+
+
+def check_app(
+    conn: "sqlite3.Connection",
+    config: WALoaderConfig,
+    app: App,
+    *,
+    _prober=None,
+) -> CheckOutcome:
+    """One health check for one RUNNING app, with failure/crash handling.
+
+    A dead process fails the app immediately; transient unhealthiness must
+    repeat ``consecutive_failures_threshold`` times before the app is marked
+    failed. On running -> failed, the crash notification rules run.
+    """
+    from waloader.notifications import service as notif_service
+    from waloader.repositories import runtime as runtime_repo
+    from waloader.services import processes, states
+
+    prober = _prober or probe_app
+    alive = processes.is_app_running(conn, app)
+    probe = prober(config, app, process_alive=alive)
+    if probe.healthy:
+        runtime_repo.record_healthy(conn, app.id)
+        conn.commit()
+        return CheckOutcome(app.slug, True, "", False, False)
+
+    failures = runtime_repo.record_unhealthy(conn, app.id, probe.reason)
+    conn.commit()
+    should_fail = (not alive) or failures >= config.health.consecutive_failures_threshold
+    if not should_fail:
+        return CheckOutcome(app.slug, False, probe.reason, False, False)
+
+    email_sent = notif_service.maybe_send_crash_email(conn, config, app, probe.reason)
+    states.transition(conn, app, states.FAILED)
+    return CheckOutcome(app.slug, False, probe.reason, True, email_sent)
+
+
+def check_all_running(
+    conn: "sqlite3.Connection", config: WALoaderConfig, *, _prober=None
+) -> list[CheckOutcome]:
+    from waloader.repositories import apps as apps_repo
+    from waloader.services import states as states_mod
+
+    outcomes = []
+    for app in apps_repo.list_all(conn):
+        if app.state == states_mod.RUNNING:
+            outcomes.append(check_app(conn, config, app, _prober=_prober))
+    return outcomes

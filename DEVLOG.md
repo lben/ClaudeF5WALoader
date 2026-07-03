@@ -104,3 +104,22 @@
   `uv run ruff check .` → clean.
 - **Known issues:** none.
 - **Next:** P5 Health & notifications.
+
+## 2026-07-03 — P5 Health & notifications — complete
+
+- **Summary:** Health check service (process->port->HTTP /_stcore/health
+  probes; dead process fails immediately, transient unhealthiness needs the
+  configured consecutive threshold; running->failed transition triggers crash
+  notification rules); notifications module: send_mail STUB in
+  notifications/mailer.py logging subject/recipients only (docstring says
+  "replace this body at work" — exact corporate signature), crash service
+  enforcing deployed_healthy + grace period + enabled flag + per-failure-event
+  dedupe (cleared on successful deploy), Outlook-compatible escaped HTML,
+  owner + admin_cc recipients; lifecycle service (start/resume with port
+  revalidation + health poll + caddy refresh on port change, stop [never
+  emails: goes to stopped], restart); startup reconciliation (dead running ->
+  stopped + resume candidate + port-conflict warnings, alive stopped ->
+  adopted, resume_apps admin action, apps_overview snapshot).
+- **Validation:** `uv run pytest` → 212 passed; `uv run ruff check .` → clean.
+- **Known issues:** none.
+- **Next:** P6 Dataset Concepts.
