@@ -1,0 +1,1606 @@
+# AGENTS.md
+
+## Purpose
+
+This repository is for WALoader, a Streamlit-based internal app platform for finance users who are not software developers but can work with LLM coding agents.
+
+WALoader lets users upload LLM-generated Streamlit projects as structured markdown bundles, reconstructs those bundles into real Streamlit projects, validates them, deploys them, manages their lifecycle, maps uploaded datasets to named Dataset Concepts, and optionally provides reusable user-management support for each deployed app.
+
+The target apps are usually low-to-medium complexity finance apps focused on loading, visualizing, and analyzing data. Most apps are read-only dashboards or analysis tools. Some apps may allow limited writes, mainly for configuration-like data.
+
+The primary objective is to make deployment and management of LLM-generated finance Streamlit apps as automated, safe, and low-friction as possible.
+
+## Non-negotiable operating rules for agents
+
+- Do not read, list, search, summarize, modify, move, delete, or infer anything under `/private`.
+- Do not generate code that reads from or writes to `/private`.
+- Do not include `/private` in backups, logs, searches, markdown bundle parsing, dataset handling, Caddy configuration, process management, or cleanup.
+- Do not hardcode secrets, tokens, passwords, package repository credentials, private certificate material, or user-specific credentials.
+- Do not commit private uv, pip, Caddy, or corporate artifact repository credentials.
+- Use small, milestone-based implementation.
+- Do not build the UI first.
+- Do not implement broad future architecture that is not needed for the current milestone.
+- Prefer automation over manual operator instructions.
+- If automation and manual instructions conflict, implement automation first and document the manual fallback second.
+- Do not stop after partial scaffolding if the requested milestone can be completed.
+- If blocked, document the blocker clearly in `DEVLOG.md` with exact error text, files changed, validation attempted, and next recommended action.
+- Do not weaken tests merely to make tests pass.
+- Do not add undocumented configuration settings.
+- Keep the system as simple as possible while still satisfying the product requirements.
+
+## Model and reasoning expectations
+
+Use the highest-quality model and reasoning effort selected by the user in the IDE.
+
+Do not assume access to a specific model name. The user may select Claude Opus High or another high-capability model in VS Code Agent Mode.
+
+Operate in careful high-reasoning mode:
+
+- understand the goal before editing;
+- plan before coding;
+- implement one milestone at a time;
+- test service-layer behavior;
+- update project memory files after every implementation session;
+- prefer explicit acceptance criteria over vague progress.
+
+## Required lifecycle files
+
+This project approximates a `/goal` workflow through repository files.
+
+The agent must maintain:
+
+- `GOAL.md` â€” canonical product goal and MVP definition.
+- `PROJECT_PLAN.md` â€” architecture, milestone roadmap, service boundaries, validation strategy, risks, and deferred features.
+- `PROGRESS.md` â€” current milestone, checklist, active acceptance criteria, and last validation result.
+- `DEVLOG.md` â€” append-only implementation log.
+- `goals/Mxx-name.md` â€” one milestone goal file per milestone.
+- `tools/goalctl.py` â€” lightweight Python lifecycle helper.
+
+Before implementation work, read:
+
+1. `AGENTS.md`
+2. `GOAL.md`
+3. `PROJECT_PLAN.md`
+4. `PROGRESS.md`
+5. `DEVLOG.md`
+6. the active `goals/Mxx-name.md` file
+
+If these files do not exist, the first milestone must create them.
+
+## Goal lifecycle rules
+
+Every milestone goal file must include:
+
+- Goal
+- Scope
+- Out of scope
+- Acceptance criteria
+- Required tests
+- Required validation commands
+- Files likely to be created or modified
+- Completion checklist
+
+`PROGRESS.md` must show:
+
+- current milestone;
+- current phase;
+- last completed milestone;
+- milestone checklist;
+- active acceptance criteria;
+- last validation command and result;
+- known blockers, if any.
+
+`DEVLOG.md` must be append-only. Every implementation session must append an entry with:
+
+- date;
+- milestone;
+- summary;
+- files changed;
+- tests added or changed;
+- validation commands run;
+- results;
+- known issues;
+- next recommended action.
+
+Do not rewrite historical `DEVLOG.md` entries except to fix formatting.
+
+## Implementation workflow
+
+Use this order:
+
+1. Plan milestone.
+2. Confirm scope against the active goal file.
+3. Implement service-layer functionality first.
+4. Add or update tests for behavior changed in the milestone.
+5. Run validation.
+6. Update `PROGRESS.md`.
+7. Append to `DEVLOG.md`.
+8. Stop only after the milestone is complete or a concrete blocker is documented.
+
+For implementation prompts that say "implement milestone Mxx", complete the milestone in the current session. Do not stop after analysis only. Do not expand beyond the milestone scope.
+
+## Build order
+
+Build WALoader in this order unless the user explicitly changes the plan.
+
+This order is intentionally dependency-first. Foundational utilities, configuration, database access, repositories, and service-layer modules must be implemented before UI clients or orchestration clients that depend on them.
+
+The agent must not build a dependency client before the dependency exists, except for a small explicit interface stub that is documented in the active milestone goal file and replaced before the feature is considered complete.
+
+### Phase 0 â€” Goal lifecycle and project control
+
+1. Lifecycle bootstrap:
+   - `GOAL.md`
+   - `PROJECT_PLAN.md`
+   - `PROGRESS.md`
+   - `DEVLOG.md`
+   - `goals/`
+   - `tools/goalctl.py`
+
+### Phase 1 â€” Project foundation
+
+2. Project skeleton and uv project setup.
+3. Configuration system with derived defaults.
+4. Development/production environment handling:
+   - Windows PowerShell development defaults;
+   - Linux/Red Hat production portability;
+   - configured Python binary;
+   - configured uv binary;
+   - configured uv config file path;
+   - configured Caddy binary path.
+5. Logging and Rich traceback setup.
+6. Core filesystem/path utilities:
+   - `pathlib.Path` usage;
+   - derived data paths;
+   - safe directory creation;
+   - `/private` protection utilities.
+7. SQLite database connection layer.
+8. SQL migrations framework.
+9. Core domain models.
+10. Repository layer for users, apps, app versions, ports, datasets, settings, and audit/log metadata.
+
+### Phase 2 â€” Security, users, and configuration prerequisites
+
+11. Password hashing and authentication primitives.
+12. WALoader user model and login/session service.
+13. WALoader admin bootstrap/seed flow.
+14. Basic authorization checks:
+   - admin-only actions;
+   - app-owner actions;
+   - app-user actions.
+15. Configuration documentation framework:
+   - `config/waloader.example.toml`;
+   - `docs/configuration.md`;
+   - every setting documented with purpose, default, allowed values, value consequences, failure behavior, and secret-safety notes.
+
+### Phase 3 â€” Core app package/version services
+
+16. App slug service:
+   - slug generation;
+   - reserved names;
+   - uniqueness checks.
+17. Markdown bundle parser:
+   - structured markdown parsing;
+   - metadata extraction;
+   - fenced file extraction.
+18. Markdown bundle safety validator:
+   - reject absolute paths;
+   - reject `..`;
+   - reject `/private`;
+   - reject paths escaping app root;
+   - reject dangerous paths.
+19. App filesystem layout service.
+20. WALoader-native app versioning service:
+   - version folders;
+   - manifests;
+   - uploaded bundle preservation;
+   - current version pointer.
+21. Dependency policy validator:
+   - app dependency policy;
+   - direct URL dependency policy;
+   - VCS dependency policy;
+   - path dependency policy.
+22. uv command/environment builder:
+   - `UV_CONFIG_FILE`;
+   - `UV_CACHE_DIR`;
+   - `UV_SYSTEM_CERTS`;
+   - configured `--python`;
+   - safe secret redaction.
+23. uv preflight service:
+   - default `uv pip install --dry-run pandas`;
+   - configurable preflight packages;
+   - copyable error output.
+
+### Phase 4 â€” Runtime platform services
+
+24. Port allocation service:
+   - configurable port range;
+   - database reservation;
+   - actual socket availability check;
+   - stable port reuse where possible.
+25. Process manager:
+   - start;
+   - stop;
+   - restart;
+   - status;
+   - logs;
+   - process metadata.
+26. Caddyfile generation service:
+   - WALoader route;
+   - child app routes;
+   - direct-port fallback metadata.
+27. Caddy process wrapper:
+   - generate;
+   - validate;
+   - start;
+   - stop;
+   - reload;
+   - status.
+28. Deployment service:
+   - reconstruct version;
+   - run tests if present;
+   - sync/install dependencies;
+   - allocate port;
+   - launch child Streamlit app;
+   - update Caddy if enabled;
+   - initial health check;
+   - success/error result object.
+29. Deployment retry/update orchestration:
+   - initial create;
+   - retry failed create;
+   - app code update;
+   - retry failed update;
+   - shared reusable backend flow.
+
+### Phase 5 â€” Health, notifications, and recovery
+
+30. Health check service:
+   - process alive;
+   - port open;
+   - HTTP check if available;
+   - last healthy timestamp;
+   - failure reason.
+31. Runtime state machine:
+   - created;
+   - deploying;
+   - deployment_failed;
+   - running;
+   - stopped;
+   - failed;
+   - deleted;
+   - pending_delete.
+32. Startup reconciliation:
+   - compare database state to actual processes;
+   - detect stale PIDs;
+   - detect occupied/missing ports;
+   - admin-only resume previously running apps.
+33. Notification service and email adapter:
+   - app-owner email lookup;
+   - production crash detection;
+   - deployment failure exclusion;
+   - crash email cooldown/dedupe;
+   - safe email HTML.
+34. Crash notification integration with health checks.
+
+### Phase 6 â€” Dataset Concepts services
+
+35. Dataset Concept model and repository.
+36. Dataset Concept CRUD service:
+   - create concept;
+   - list concepts;
+   - delete concept with confirmation support.
+37. Dataset upload storage service:
+   - csv;
+   - parquet;
+   - xlsx;
+   - xls.
+38. Dataset schema inference service.
+39. Dataset schema diff service:
+   - added columns;
+   - removed columns;
+   - type changes;
+   - copyable diff output.
+40. Dataset replacement confirmation workflow.
+41. `waloader_sdk.datasets`:
+   - `load_dataset("concept")`;
+   - empty dataset behavior;
+   - "No data uploaded yet" helper behavior where appropriate.
+
+### Phase 7 â€” User Management module services
+
+42. App-level user-management enable/disable service.
+43. App user model and repository.
+44. App user CRUD service:
+   - create;
+   - update;
+   - deactivate;
+   - reactivate;
+   - delete;
+   - change password.
+45. User observations support.
+46. User attachment metadata and file storage support.
+47. App-level login requirement service.
+48. `waloader_sdk.auth`:
+   - `require_login(app_slug=...)`;
+   - login/logout helper behavior;
+   - password change helper behavior.
+
+### Phase 8 â€” CLI tools and operator automation
+
+49. `waloader.tools.db`:
+   - migrate;
+   - status;
+   - backup.
+50. `waloader.tools.appctl`:
+   - list;
+   - status;
+   - start;
+   - stop;
+   - restart;
+   - logs;
+   - health;
+   - reconcile.
+51. `waloader.tools.caddyctl`:
+   - generate;
+   - validate;
+   - start;
+   - stop;
+   - reload;
+   - status.
+52. `waloader.tools.maintenance`:
+   - backup-db;
+   - cleanup-retention;
+   - cleanup-logs;
+   - archive-deleted-apps;
+   - hard-delete-expired-apps.
+
+### Phase 9 â€” Minimal WALoader UI
+
+53. Minimal login screen.
+54. Logout and password change screen.
+55. Basic dashboard shell.
+56. App cards grid with scroll behavior when needed.
+57. Create new app screen:
+   - markdown upload;
+   - app name;
+   - description;
+   - generated URL label / slug;
+   - database-backed uniqueness check;
+   - check/X availability indicator;
+   - smaller italic unavailable-name message.
+58. Create app submit flow:
+   - success modal/screen;
+   - copyable app URL code block;
+   - open app link;
+   - error modal/screen;
+   - copyable error block;
+   - upload fixed markdown and retry.
+59. App gear/configuration modal:
+   - update code;
+   - stop with confirmation;
+   - resume with confirmation;
+   - restart with confirmation;
+   - delete with confirmation;
+   - enable/disable User Management Support;
+   - open Dataset Concepts mapping.
+60. Reuse the same backend deployment flow for create, retry create, update, and retry update.
+
+### Phase 10 â€” Dataset and user-management UI
+
+61. Dataset Concepts mapping UI:
+   - add concept field;
+   - saved concept list;
+   - upload button per concept;
+   - delete button per concept;
+   - delete confirmation;
+   - replacement upload;
+   - schema diff display;
+   - replacement confirmation.
+62. WALoader user-management UI for admin.
+63. App user-management UI for app owners.
+64. User observations and attachment UI.
+65. Child-app login helper integration guidance.
+
+### Phase 11 â€” Admin panel
+
+66. Admin-only configuration panel:
+   - Python binary path;
+   - uv binary path;
+   - uv config file path;
+   - uv cache directory;
+   - uv system certificates setting;
+   - Caddy binary path;
+   - Caddy enabled/disabled;
+   - Caddy public host and port;
+   - data directory;
+   - derived paths display;
+   - port range;
+   - backup retention;
+   - log retention;
+   - deleted app retention;
+   - upload size limits;
+   - allowed dataset extensions;
+   - dependency policy;
+   - health check timing;
+   - crash notification settings.
+67. Admin process panel:
+   - app statuses;
+   - reconciliation results;
+   - resume selected apps;
+   - resume all previously running apps.
+68. Admin Caddy panel:
+   - Caddy status;
+   - generate config;
+   - validate config;
+   - start;
+   - stop;
+   - reload;
+   - view current generated Caddyfile;
+   - view Caddy logs.
+
+### Phase 12 â€” Backups, retention, and hard-delete workflows
+
+69. SQLite backup service:
+   - daily if changed;
+   - configurable retention;
+   - hash or change detection.
+70. Deleted app archive service:
+   - compress source/config/metadata/log references;
+   - preserve archive;
+   - mark pending hard delete.
+71. Retention cleanup:
+   - old DB backups;
+   - old logs;
+   - expired deleted app archives.
+72. Maintenance scheduling loop or operator-triggered maintenance service that does not require cron.
+
+### Phase 13 â€” Documentation and guides
+
+73. `docs/process-management.md`
+74. `docs/caddy-reverse-proxy.md`
+75. `docs/markdown-bundle-contract.md`
+76. `docs/dataset-concepts-contract.md`
+77. `docs/user-management.md`
+78. `docs/dependency-policy.md`
+79. `docs/troubleshooting.md`
+80. Ensure all docs show PowerShell examples first and Linux/bash examples second where shell commands are relevant.
+
+### Phase 14 â€” UI polish and hardening
+
+81. Improve dashboard layout and visual clarity.
+82. Improve error messages and copyable diagnostics.
+83. Improve empty states.
+84. Improve confirmation dialogs.
+85. Improve status indicators.
+86. Final service-layer test coverage review.
+87. Final documentation consistency review.
+
+## Dependency rule
+
+Each milestone must explicitly list its dependencies.
+
+A milestone must not implement a client of a service before that service exists, unless the milestone creates a small documented interface stub for that service. Stubs must be replaced before the feature is considered complete.
+
+Examples:
+
+- The dashboard must not call deployment behavior before the deployment service exists.
+- The deployment service must not call Caddy behavior before the Caddy manager exists.
+- The deployment service must not allocate ports before the port allocation service exists.
+- Health checks must not send crash emails before the notification service exists.
+- Dataset UI must not call Dataset Concepts behavior before Dataset Concepts services exist.
+- App user-management UI must not call app user-management behavior before app user-management services exist.
+
+Prefer bottom-up implementation for services and vertical-slice validation after each major service group.
+
+## Product user roles
+
+WALoader has at least these user roles:
+
+- WALoader admin: the operator/admin of the WALoader platform.
+- App owner: a WALoader user who uploads and manages one or more child apps.
+- App user: a user who opens and uses a deployed child app.
+- Anonymous/unauthenticated visitor: a user who has not logged in yet.
+
+The WALoader admin can access the admin panel and platform configuration. App owners can manage their own apps and, when user-management support is enabled, manage users for their own apps.
+
+## Product user flow
+
+The intended user flow is:
+
+1. A finance user works independently with a coding LLM to build a Streamlit app.
+2. The finance user asks the coding LLM to provide a structured markdown file containing the entire project, except binaries or large files that should be attached separately.
+3. The user loads the WALoader site and logs in.
+4. The user dashboard shows the apps owned by that user.
+5. The dashboard includes a "Create new app" button.
+6. When "Create new app" is selected, the user can:
+   - upload the markdown project bundle;
+   - enter an app name;
+   - enter an app description;
+   - enable or disable "Users Management Support";
+   - define Dataset Concepts if needed.
+7. While the user types the app name:
+   - WALoader generates a URL label / slug from the name;
+   - WALoader checks SQLite to see whether the app name or slug is already taken;
+   - the UI shows a check mark when available;
+   - the UI shows an X when unavailable;
+   - if unavailable, the UI shows a smaller italic message under the name field explaining that the name is already taken.
+8. When the user selects Submit:
+   - WALoader sends the markdown bundle to the backend service layer;
+   - WALoader validates the bundle;
+   - WALoader reconstructs the project into a versioned source directory;
+   - WALoader runs tests if the uploaded app includes tests;
+   - WALoader finds an available port;
+   - WALoader creates or updates the app runtime;
+   - WALoader starts the child Streamlit app;
+   - WALoader updates Caddy routing if Caddy is enabled;
+   - WALoader performs initial health checks.
+9. On successful deployment, WALoader shows a success screen or modal with:
+   - a success message;
+   - a copyable code block containing the app URL;
+   - a link to the deployed app, opening in a new tab if Streamlit allows it.
+10. On deployment failure, WALoader shows an error screen or modal with:
+   - a concise failure message;
+   - a copyable code block containing concatenated deployment, test, dependency, and runtime errors;
+   - an upload button that allows the user to upload a fixed markdown bundle and retry.
+11. The same upload/deploy flow must be composable and reused for:
+   - initial app creation;
+   - retry after failed creation;
+   - app code update;
+   - retry after failed update.
+
+## Dashboard flow
+
+The user dashboard must support:
+
+1. Login.
+2. Logout.
+3. Password change.
+4. A vertically scrollable grid of app cards when the user owns many apps.
+5. One card per app.
+6. A gear icon on every app card.
+7. Selecting the gear icon opens an app configuration modal.
+
+The app configuration modal must allow the app owner to:
+
+- update code by uploading a new markdown bundle;
+- reuse the same success/error retry deployment flow used by app creation;
+- stop the app, with confirmation dialog;
+- resume the app if previously stopped, with confirmation dialog;
+- restart the app, with confirmation dialog;
+- delete the app, with confirmation dialog;
+- enable or disable Users Management Support;
+- manage Dataset Concepts.
+
+Deleting an app must not immediately hard-delete everything. The backend must:
+
+- stop the app;
+- compress/archive the source, metadata, and relevant deployment artifacts;
+- mark the app as deleted or pending deletion;
+- hide the app from the normal dashboard;
+- hard-delete after the configured retention period, default 183 days.
+
+## User management support module
+
+WALoader must provide a reusable user-management module.
+
+The module is enabled by default for WALoader itself. App owners may enable or disable it for their own apps.
+
+If a child app has user-management support enabled:
+
+- app users must log into that child app before using it;
+- the child app must show login/logout support;
+- the child app must support password change;
+- unauthenticated users should see the login form as the default screen.
+
+The user-management module must support:
+
+- table of existing users;
+- create user;
+- update user;
+- deactivate user;
+- reactivate user;
+- delete user;
+- change password;
+- user email address;
+- observations text area;
+- dynamic attachment metadata and files, such as screenshots or other evidence provided to justify access.
+
+The module should be implemented as a central WALoader service plus reusable SDK/helper logic, not copied into each child app.
+
+Generated child apps may use:
+
+```python
+from waloader_sdk.auth import require_login
+```
+
+If user-management support is disabled for a child app, app-level login is not required for that child app.
+
+Do not store plaintext passwords. Use a secure password hashing library such as `argon2-cffi`.
+
+## Dataset Concepts module
+
+WALoader must provide each app with the ability to define and upload datasets associated with named Dataset Concepts.
+
+Dataset Concepts are stable concept names that the generated app code expects, such as:
+
+- clients
+- transactions
+- positions
+- accounts
+- trades
+- reference_data
+
+The user may tell the coding LLM that the app will use a concept by referring to the concept in brackets, such as:
+
+- `[clients]`
+- `[transactions]`
+- `[positions]`
+
+Generated app code should use the WALoader SDK:
+
+```python
+from waloader_sdk.datasets import load_dataset
+
+clients = load_dataset("clients")
+```
+
+If no file has been uploaded for a concept, the app should show an empty space with an italic message:
+
+No data uploaded yet
+
+Dataset upload support must include:
+
+- `.csv`
+- `.xlsx`
+- `.xls`
+- `.parquet`
+
+CSV is the default expected format, but Excel and parquet are supported.
+If an Excel file (`.xlsx` or `.xls`) is uploaded for a Dataset Concept, WALoader must require a sheet name. The upload UI must show a sheet-name input pre-filled with `Sheet1`. The sheet name is required for Excel files and must be stored with the dataset file metadata so the app can load the correct sheet later. CSV and parquet uploads do not require a sheet name.
+
+## Dataset Concepts flow
+
+The Dataset Concepts flow must support:
+
+1. When creating or editing an app, the user can open the Dataset Concepts mapping screen.
+2. The screen shows a text field for a new concept name.
+3. The user enters a concept name, for example `clients`.
+4. The user selects save.
+5. The saved concept appears in the concept list.
+6. Each saved concept row includes:
+   - concept name;
+   - upload file button;
+   - delete button.
+7. Deleting a concept requires confirmation.
+8. Uploading a file automatically stores the file and associates the file with the concept.
+9. For an existing concept with an existing uploaded file, the user can upload a replacement file.
+10. Replacement upload compares old and new schemas:
+    - headers;
+    - inferred data types;
+    - added columns;
+    - removed columns;
+    - changed column types.
+11. If schema discrepancies exist:
+    - report the discrepancies to the user;
+    - show the schema diff in a copyable code block;
+    - ask for confirmation before overwriting.
+12. A schema mismatch may be acceptable if the user has also updated the app code to use the new schema.
+
+The schema diff feature must be implemented in a reusable service function and tested.
+
+For Excel uploads:
+
+- when the selected file extension is `.xlsx` or `.xls`, show a sheet-name input;
+- pre-fill the sheet-name input with `Sheet1`;
+- require the sheet name before saving the upload;
+- store the sheet name with the dataset file metadata;
+- use the stored sheet name when reading the Excel file;
+- include the sheet name in schema inference and schema comparison operations.
+
+For CSV and parquet uploads, do not ask for a sheet name.
+
+## Markdown project bundle contract
+
+WALoader accepts structured markdown project bundles.
+
+Bundle requirements:
+
+- metadata section;
+- file blocks with relative paths;
+- declared entrypoint;
+- optional `pyproject.toml`;
+- optional tests;
+- no binaries embedded in markdown;
+- binary files must be attached separately if needed.
+
+Parser safety rules:
+
+- reject absolute paths;
+- reject `..`;
+- reject paths under `/private`;
+- reject paths that escape the app root;
+- reject dangerous hidden paths unless explicitly allowed;
+- never overwrite WALoader source files;
+- reconstruct into a versioned app source directory;
+- preserve file contents exactly inside fenced blocks where practical.
+
+Every upload creates a new app version.
+
+The upload/deployment service must be composable so creation, retry, update, and update retry reuse the same backend logic.
+
+## WALoader-native app versioning
+
+Do not create a Git repository per child app for MVP.
+
+Use WALoader-native versioning:
+
+```text
+data/apps/<app_slug>/
+  versions/
+    000001/
+      source/
+      manifest.json
+      uploaded_bundle.md
+    000002/
+      source/
+      manifest.json
+      uploaded_bundle.md
+  runtime/
+  datasets/
+```
+
+The database must track:
+
+- app id;
+- app owner;
+- app name;
+- app slug;
+- description;
+- current version;
+- all versions;
+- deployment status;
+- runtime state;
+- created by;
+- created at;
+- updated at;
+- allocated port;
+- Caddy route if enabled;
+- logs and deployment results.
+
+## App slugs
+
+An `app_slug` is a safe URL and filesystem identifier derived from the user-facing app name.
+
+Examples:
+
+```text
+"Client Positions Dashboard" -> "client-positions-dashboard"
+"P&L Explain 2026!" -> "p-l-explain-2026"
+```
+
+The slug is used in:
+
+```text
+URL:
+http://servername:8080/apps/client-positions-dashboard
+
+Folder:
+data/apps/client-positions-dashboard/
+
+Logs:
+data/logs/apps/client-positions-dashboard/
+
+Database:
+apps.slug = "client-positions-dashboard"
+```
+
+Rules:
+
+- lowercase;
+- letters, numbers, and hyphens only;
+- spaces and punctuation become hyphens;
+- repeated hyphens collapse into one;
+- no leading or trailing hyphen;
+- max length 60 characters;
+- must be unique;
+- reserved names are blocked.
+
+Reserved names include:
+
+```text
+waloader
+admin
+login
+logout
+api
+static
+assets
+private
+health
+apps
+app-link
+caddy
+```
+
+## Configuration philosophy
+
+Keep configuration simple.
+
+Only require settings that cannot be safely inferred. Prefer derived defaults over required configuration.
+
+Primary required or near-required settings:
+
+- Python binary path
+- uv binary path
+- Caddy binary path if Caddy support is enabled
+- uv config file path if the environment requires a private package index
+- public host if clean URLs should use a specific server name
+
+All other paths should derive from `paths.data_dir` unless explicitly overridden.
+
+Example derived paths:
+
+```text
+database_path      = data/waloader.db
+apps_dir           = data/apps
+logs_dir           = data/logs
+backups_dir        = data/backups
+uploads_dir        = data/uploads
+tmp_dir            = data/tmp
+uv_cache_dir       = data/uv-cache
+caddy_config_path  = data/caddy/Caddyfile
+caddy_logs_dir     = data/logs/caddy
+```
+
+Every configurable setting must be documented in:
+
+1. `config/waloader.example.toml` using TOML comments where practical.
+2. `docs/configuration.md`.
+
+For every setting, document:
+
+- setting name;
+- purpose;
+- default;
+- required or optional status;
+- allowed values;
+- what happens when each allowed value is used;
+- when to change it;
+- what happens if missing;
+- what happens if wrong;
+- whether it may contain secrets;
+- whether it is safe to commit.
+
+Do not add undocumented settings.
+
+## Stack
+
+Use a simple Python stack:
+
+- Python 3.12
+- uv package manager
+- Streamlit
+- pandas
+- duckdb
+- plotly
+- sqlite3
+- pyarrow
+- openpyxl
+- pydantic if useful for config and validation
+- psutil for process management
+- rich for tracebacks and CLI readability
+- argon2-cffi for password hashing
+- pytest for tests
+- ruff for lightweight linting if it helps and does not get in the way
+
+Avoid for MVP unless explicitly needed:
+
+- FastAPI
+- Celery
+- Redis
+- Docker as a hard dependency
+- Kubernetes
+- per-app OS users
+- mandatory systemd
+- mandatory cron
+- browser-based UI test automation
+
+## uv and dependency installation
+
+WALoader assumes the operator has configured uv so it can install packages from the approved company package index before running deployments.
+
+Do not rely on `pip.ini` for uv behavior. uv uses uv-native configuration.
+
+WALoader must support:
+
+```toml
+[executables]
+python_binary = "/path/to/python3.12"
+uv_binary = "/path/to/uv"
+caddy_binary = "/path/to/caddy"
+
+[uv]
+config_file = "/path/to/private/uv.toml"
+cache_dir = "data/uv-cache"
+system_certs = true
+ssl_cert_file = ""
+ssl_cert_dir = ""
+allow_insecure_hosts = []
+preflight_packages = ["pandas"]
+```
+
+When invoking uv:
+
+- pass `UV_CONFIG_FILE` if `uv.config_file` is set;
+- pass `UV_CACHE_DIR` if `uv.cache_dir` is set;
+- pass `UV_SYSTEM_CERTS=true` if `uv.system_certs` is true;
+- pass `SSL_CERT_FILE` if configured;
+- pass `SSL_CERT_DIR` if configured;
+- use the configured Python executable through `--python <path>` when `executables.python_binary` is set;
+- pass host-specific insecure settings only when explicitly configured;
+- preserve existing environment variables unless intentionally overridden;
+- never read, print, or log the contents of `uv.config_file`;
+- never log secrets or token-bearing URLs.
+
+Default preflight:
+
+```bash
+uv pip install --dry-run pandas
+```
+
+Preflight should use the same uv binary and environment that deployments will use.
+
+If dependency install fails, WALoader must show a clear, copyable error block and log the full technical details without exposing secrets.
+
+## Dependency policy
+
+Use per-app virtual environments for deployed child apps, with a shared uv cache directory.
+
+Do not use one global mutable venv for all child apps.
+
+Do not rely on uv inline script metadata for deployed multi-file Streamlit apps. uv scripts may be used for small maintenance tools only if useful.
+
+Recommended defaults:
+
+```toml
+[dependencies_policy]
+allow_app_dependencies = true
+allow_direct_url_dependencies = false
+allow_vcs_dependencies = false
+allow_path_dependencies = false
+require_admin_approval_for_new_dependencies = false
+```
+
+Meaning:
+
+- `allow_app_dependencies = true`: child apps may declare normal package dependencies in `pyproject.toml`.
+- `allow_app_dependencies = false`: child apps may only use the WALoader-approved base dependency set.
+- `allow_direct_url_dependencies = true`: allow dependencies from direct wheel/source URLs.
+- `allow_direct_url_dependencies = false`: reject direct URL dependencies.
+- `allow_vcs_dependencies = true`: allow dependencies from Git or other VCS URLs.
+- `allow_vcs_dependencies = false`: reject VCS dependencies.
+- `allow_path_dependencies = true`: allow local path dependencies.
+- `allow_path_dependencies = false`: reject local path dependencies.
+- `require_admin_approval_for_new_dependencies = true`: block new app dependencies until admin approval.
+- `require_admin_approval_for_new_dependencies = false`: attempt install automatically and report failures.
+
+Reject dependency forms that violate policy with clear user-facing errors.
+
+## Development and production environments
+
+Development is expected to happen on a Windows 11 machine, likely from a PowerShell terminal.
+
+Production is expected to run on Linux, likely Red Hat 8.10 or a similar enterprise Linux environment.
+
+The code must remain portable between Windows and Linux:
+
+- use `pathlib.Path` for filesystem paths;
+- avoid hardcoded path separators in Python code;
+- avoid shell-specific commands inside Python service code;
+- when shell commands are documented, provide PowerShell and Linux/bash variants where relevant;
+- show PowerShell examples first for development, then Linux/bash examples for production;
+- do not assume root/admin privileges;
+- do not assume systemd, cron, Nginx, Docker, or global package installation privileges;
+- prefer Python-based automation and configurable executable paths.
+
+### Windows development machine defaults
+
+On the Windows development machine:
+
+- `uv` is expected to already be available on `PATH`;
+- the development shell is expected to be PowerShell;
+- uv must use system certificates because the company artifact repository requires the system certificate store;
+- the development uv config file is expected at:
+
+```text
+C:\Users\bl81398\uv.toml
+```
+
+- this file contains private package index configuration and must never be committed;
+- agents may reference this file path for local development preflight and dependency installation commands;
+- agents must never open, read, print, summarize, copy, inspect, or log the contents of this file;
+- agents must never include token-bearing package index URLs in logs, docs, code, errors, generated markdown, or test fixtures.
+
+The preferred development Python executable is:
+
+```text
+C:\Users\bl81398\AppData\Local\Programs\Python\Python312\python.exe
+```
+
+The preferred development Caddy binary is:
+
+```text
+C:\Users\bl81398\Downloads\caddy_windows_amd64.exe
+```
+
+For PowerShell development commands, use this pattern:
+
+```powershell
+$env:UV_CONFIG_FILE = "C:\Users\bl81398\uv.toml"
+$env:UV_SYSTEM_CERTS = "true"
+uv pip install --dry-run pandas --python "C:\Users\bl81398\AppData\Local\Programs\Python\Python312\python.exe"
+```
+
+For Linux/bash production-like commands, use this pattern:
+
+```bash
+UV_CONFIG_FILE="/path/to/private/uv.toml" \
+UV_SYSTEM_CERTS=true \
+uv pip install --dry-run pandas --python "/path/to/python3.12"
+```
+
+WALoader configuration must support these paths as configurable values:
+
+```toml
+[executables]
+# On the Windows development machine, uv is expected to be on PATH.
+uv_binary = "uv"
+
+# Windows development default.
+python_binary = "C:\\Users\\bl81398\\AppData\\Local\\Programs\\Python\\Python312\\python.exe"
+
+# Windows development default.
+caddy_binary = "C:\\Users\\bl81398\\Downloads\\caddy_windows_amd64.exe"
+
+[uv]
+# This file may contain private credentials. Reference the path only. Never read, print, log, or commit its contents.
+config_file = "C:\\Users\\bl81398\\uv.toml"
+
+# Required in the development environment because the company artifact repository depends on system certificates.
+system_certs = true
+
+# Derived by default from paths.data_dir if not explicitly set.
+cache_dir = "data/uv-cache"
+```
+
+Production deployments must override these development paths with production-appropriate values.
+
+## PYTHONPATH and WALoader SDK
+
+WALoader must expose a shared SDK to child apps.
+
+SDK package:
+
+```text
+src/waloader_sdk/
+```
+
+When launching child apps, prepend WALoader `src` to `PYTHONPATH` while preserving any existing `PYTHONPATH`.
+
+Example logic:
+
+```python
+existing_pythonpath = env.get("PYTHONPATH", "")
+sdk_path = str(project_root / "src")
+
+if existing_pythonpath:
+    env["PYTHONPATH"] = sdk_path + os.pathsep + existing_pythonpath
+else:
+    env["PYTHONPATH"] = sdk_path
+```
+
+Never overwrite `PYTHONPATH` blindly.
+
+## Runtime and process management
+
+Use pure Python process management with `subprocess` and `psutil`.
+
+WALoader must support app lifecycle operations:
+
+- start
+- stop
+- restart
+- status
+- health
+- reconcile
+
+Provide CLI wrappers:
+
+```bash
+uv run python -m waloader.tools.appctl list
+uv run python -m waloader.tools.appctl status <app_slug>
+uv run python -m waloader.tools.appctl start <app_slug>
+uv run python -m waloader.tools.appctl stop <app_slug>
+uv run python -m waloader.tools.appctl restart <app_slug>
+uv run python -m waloader.tools.appctl logs <app_slug>
+uv run python -m waloader.tools.appctl health <app_slug>
+uv run python -m waloader.tools.appctl reconcile
+```
+
+The admin UI must call the same service layer as the CLI.
+
+On WALoader startup, reconcile database state with actual processes and ports. Admin-only actions may offer to resume selected or all previously running apps.
+
+## Port allocation
+
+Use configurable port ranges.
+
+Recommended defaults:
+
+```toml
+[ports]
+waloader_port = 8501
+child_app_start = 8601
+child_app_end = 8999
+caddy_public_port = 8080
+```
+
+Port allocation must:
+
+- check the database for assigned ports;
+- check whether the port is actually available;
+- reserve ports atomically;
+- keep an app on the same port across restarts when possible;
+- release ports when apps are hard-deleted;
+- avoid collisions.
+
+## Caddy reverse proxy
+
+Caddy is the preferred reverse proxy.
+
+Do not assume root access. Do not assume Caddy is installed globally. Do not assume port 80 is available.
+
+Caddy binary path must be configurable before WALoader starts.
+
+Default public Caddy port should be `8080`.
+
+Preferred clean URLs:
+
+```text
+http://servername:8080/waloader
+http://servername:8080/apps/<app_slug>
+```
+
+Fallback direct URLs:
+
+```text
+http://servername:<allocated_child_port>
+```
+
+WALoader must provide service-layer Caddy operations and expose them through CLI and admin UI:
+
+```bash
+uv run python -m waloader.tools.caddyctl generate
+uv run python -m waloader.tools.caddyctl validate
+uv run python -m waloader.tools.caddyctl start
+uv run python -m waloader.tools.caddyctl stop
+uv run python -m waloader.tools.caddyctl reload
+uv run python -m waloader.tools.caddyctl status
+```
+
+WALoader should generate the Caddyfile from the app database. Users should not need to hand-edit it during normal operation.
+
+If Caddy is enabled and available:
+
+- WALoader launches itself with `--server.baseUrlPath=waloader` when appropriate.
+- Child apps launch with `--server.baseUrlPath=apps/<app_slug>`.
+- Caddy routes `/waloader` to the WALoader port.
+- Caddy routes `/apps/<app_slug>` to each child app port.
+
+If Caddy fails, WALoader should fall back to direct port URLs and report the Caddy error clearly.
+
+## Health checks
+
+WALoader must track runtime states such as:
+
+- created
+- deploying
+- deployment_failed
+- running
+- stopped
+- failed
+- deleted
+- pending_delete
+
+Health checks should track:
+
+- process exists;
+- PID is alive;
+- expected port is open;
+- HTTP health check responds if available;
+- last healthy time;
+- last failed time;
+- failure reason.
+
+The dashboard should show app status clearly.
+
+## Notifications and crash emails
+
+WALoader must distinguish deployment failures from production crashes.
+
+Do not send crash notification email for:
+
+- dependency installation failure;
+- test failure;
+- initial deployment failure;
+- user-triggered stop;
+- user-triggered restart;
+- app update failure.
+
+Send crash notification email only when:
+
+- the app was previously running;
+- it passed initial health checks;
+- it lived beyond the configured production grace period;
+- a later health check detects process death or repeated unhealthy status;
+- state transitions from `running` to `failed`;
+- no email has already been sent for that failure event.
+
+Use a notification adapter module. Do not scatter email calls across services.
+
+The available email function has this signature:
+
+```python
+send_mail(
+    subject=email_subject,
+    sender='[sender_email]',
+    recipients=recipients_list,
+    html_body=outlook_compatible_email_html_content,
+)
+```
+
+The notification module should call this adapter when configured.
+
+## Logging and tracebacks
+
+Use Python `logging`, not random `print`, except in CLI tools.
+
+Logs should live under `data/logs` by default.
+
+Default log retention: 183 days.
+
+Log categories:
+
+```text
+data/logs/waloader/app.log
+data/logs/waloader/error.log
+data/logs/caddy/
+data/logs/apps/<app_slug>/<version>/deploy.log
+data/logs/apps/<app_slug>/<version>/runtime.log
+data/logs/apps/<app_slug>/<version>/test.log
+```
+
+Use Rich tracebacks in development mode:
+
+```python
+from rich.traceback import install
+install(show_locals=False)
+```
+
+Default:
+
+```toml
+[debug]
+rich_tracebacks_enabled = true
+rich_tracebacks_show_locals = false
+```
+
+Do not log passwords, tokens, private repository URLs with credentials, uploaded data contents, or secrets.
+
+Add useful debug logs around:
+
+- markdown parsing;
+- file reconstruction;
+- dependency sync;
+- test execution;
+- process start/stop/restart;
+- Caddy generation/reload;
+- health checks;
+- dataset schema diff;
+- backup and cleanup.
+
+## Backups and retention
+
+SQLite database must be backed up periodically by a portable Python maintenance tool, not cron.
+
+Default:
+
+- daily backup if changed;
+- 183-day retention;
+- backup only when DB changed.
+
+Deleted apps:
+
+- mark as pending or soft-deleted;
+- stop process;
+- archive source/config/metadata/log references;
+- hide from normal dashboard;
+- hard-delete after configured retention.
+
+Provide maintenance CLI:
+
+```bash
+uv run python -m waloader.tools.maintenance backup-db
+uv run python -m waloader.tools.maintenance cleanup-retention
+uv run python -m waloader.tools.maintenance cleanup-logs
+```
+
+## SQLite and migrations
+
+Use SQL migration files.
+
+Example:
+
+```text
+src/waloader/migrations/
+  001_initial.sql
+  002_add_runtime_state.sql
+  003_add_notifications.sql
+```
+
+Track applied migrations in:
+
+```text
+schema_migrations
+```
+
+WALoader startup may auto-run migrations if configured.
+
+Provide CLI:
+
+```bash
+uv run python -m waloader.tools.db migrate
+uv run python -m waloader.tools.db status
+uv run python -m waloader.tools.db backup
+```
+
+Do not mutate schema ad hoc without migration files.
+
+## Admin panel
+
+WALoader admin must have access to an admin-only panel.
+
+The admin panel should allow configuration and operations for:
+
+- Python binary path;
+- uv binary path;
+- uv config file path;
+- uv cache directory;
+- uv system certificates setting;
+- Caddy binary path;
+- Caddy enabled/disabled;
+- Caddy public host and port;
+- data directory;
+- derived paths display;
+- port range;
+- backup retention;
+- log retention;
+- deleted app retention;
+- upload size limits;
+- allowed dataset extensions;
+- dependency policy;
+- health check timing;
+- crash notification settings;
+- process reconciliation;
+- Caddy status and reload;
+- app status overview.
+
+Use sane defaults and derive as much as possible from `paths.data_dir`.
+
+## Upload limits
+
+Upload limits must be configurable.
+
+Recommended defaults:
+
+```toml
+[uploads]
+max_markdown_bundle_mb = 10
+max_dataset_file_mb = 250
+allowed_dataset_extensions = [".csv", ".xlsx", ".xls", ".parquet"]
+default_excel_sheet_name = "Sheet1"
+```
+
+## Testing rules
+
+Every milestone must include tests for the service-layer behavior it implements.
+
+Do not add browser/UI automation tests for MVP. Users are responsible for testing the behavior of their own generated apps.
+
+Test these areas:
+
+- config loading and derived defaults;
+- slug generation;
+- path safety;
+- markdown bundle parsing;
+- app version creation;
+- port allocation;
+- process state transitions;
+- Caddyfile generation;
+- uv preflight command construction;
+- uv environment variable handling;
+- health check state transitions;
+- crash notification dedupe;
+- dataset schema diffing;
+- migrations;
+- backup retention;
+- log cleanup;
+- `/private` rejection.
+
+Also test Excel Dataset Concept behavior:
+
+- Excel uploads require a sheet name;
+- the default sheet name is `Sheet1`;
+- CSV and parquet uploads do not require a sheet name;
+- Excel dataset metadata stores the selected sheet name;
+- schema inference uses the selected Excel sheet;
+- schema comparison uses the selected Excel sheet for both old and replacement files.
+
+Do not edit tests merely to make them pass. Existing tests may be changed only when the intended behavior changes. Document behavior changes in `DEVLOG.md`.
+
+Run relevant validation before finishing a milestone.
+
+Suggested default validation:
+
+```bash
+uv run pytest
+uv run ruff check .
+```
+
+If `ruff` blocks progress for non-functional style reasons, prioritize passing tests and working behavior, then document the issue.
+
+## Documentation requirements
+
+The agent must create and maintain:
+
+```text
+docs/configuration.md
+docs/process-management.md
+docs/caddy-reverse-proxy.md
+docs/markdown-bundle-contract.md
+docs/dataset-concepts-contract.md
+docs/user-management.md
+docs/dependency-policy.md
+docs/troubleshooting.md
+```
+
+
+Guides must be practical and operator-focused.
+
+Every CLI tool must have documentation with examples.
+
+Every setting must be documented as described in the Configuration philosophy section.
+
+## Definition of done for a milestone
+
+A milestone is done only when:
+
+- implementation matches the active goal file;
+- scope did not expand without user instruction;
+- service-layer behavior is implemented;
+- tests were added or updated appropriately;
+- validation commands were run;
+- `PROGRESS.md` was updated;
+- `DEVLOG.md` was appended;
+- docs/config examples were updated if settings or operator behavior changed;
+- no `/private` rule was violated.
+
+If any item cannot be completed, document the blocker in `DEVLOG.md`.
+
+## Operator experience principle
+
+The operator should configure WALoader once and then manage the system from WALoader itself.
+
+WALoader should automate:
+
+- port allocation;
+- app start/stop/restart;
+- child app deployment;
+- Caddyfile generation;
+- Caddy start/reload/status where possible;
+- health checks;
+- crash email notification;
+- database backups;
+- log cleanup;
+- deleted app archive cleanup;
+- startup reconciliation.
+
+Manual shell commands should exist as fallback and debugging tools, not as the primary day-to-day workflow.
+
+## Suggested prompts to run
+
+### Prompt 1: first planning prompt
+
+/plan
+
+Read AGENTS.md. Do not implement WALoader functionality yet.
+
+Create a plan for milestone M00: lifecycle bootstrap.
+
+M00 must create:
+- GOAL.md
+- PROJECT_PLAN.md
+- PROGRESS.md
+- DEVLOG.md
+- goals/M00-lifecycle-bootstrap.md
+- tools/goalctl.py
+- config/waloader.example.toml
+- docs/configuration.md initial skeleton
+
+The plan must include:
+1. files to create
+2. exact contents/sections each file should have
+3. acceptance criteria
+4. validation commands
+5. how future milestones will use these files
+
+Do not touch /private.
+
+### Prompt 2: first implementation prompt
+
+Implement milestone M00 completely in this session.
+
+Do not stop after partial scaffolding or analysis. Continue until the M00 acceptance criteria are met, validation commands are run, PROGRESS.md is updated, and DEVLOG.md is appended.
+
+Stay strictly within M00 scope. Do not implement WALoader app functionality yet. Do not touch /private.
+
+If blocked by a concrete error or missing prerequisite, stop only after writing the blocker, exact error, files changed, and next recommended action in DEVLOG.md.
+
+### Prompt 3: project plan refinement prompt after M00
+
+/plan
+
+Read AGENTS.md, GOAL.md, PROJECT_PLAN.md, PROGRESS.md, DEVLOG.md, and goals/M00-lifecycle-bootstrap.md.
+
+Now create the full WALoader milestone roadmap in PROJECT_PLAN.md and create the next milestone goal file: goals/M01-project-skeleton.md.
+
+Do not code yet.
+
+The roadmap must follow the build order in AGENTS.md and keep the app simple, automated, service-layer first, and Caddy-enabled.
+
+### Prompt 4: first real implementation prompt
+
+Implement milestone M01 completely in this session according to AGENTS.md, PROJECT_PLAN.md, PROGRESS.md, DEVLOG.md, and goals/M01-project-skeleton.md.
+
+Do not stop after partial scaffolding. Continue until the milestone acceptance criteria are met, tests are added where relevant, validation commands are run, PROGRESS.md is updated, and DEVLOG.md is appended.
+
+Stay strictly within M01 scope. Do not touch /private.
+
+If blocked, document the blocker, exact error, files changed, and next recommended action in DEVLOG.md.
+
+### Prompt 5: reusable milestone planning prompt
+
+/plan
+
+Read AGENTS.md, GOAL.md, PROJECT_PLAN.md, PROGRESS.md, DEVLOG.md, and the active goals/Mxx-*.md file.
+
+Plan milestone Mxx only. Do not code.
+
+Include:
+1. files to create or modify
+2. service-layer behavior
+3. tests required
+4. validation commands
+5. config/docs updates needed
+6. risks and blockers
+7. exact acceptance criteria
+
+### Prompt 6: reusable milestone implementation prompt
+
+Implement milestone Mxx completely in this session according to AGENTS.md, PROJECT_PLAN.md, PROGRESS.md, DEVLOG.md, and the active goals/Mxx-*.md file.
+
+Do not stop after partial scaffolding or analysis. Continue until the milestone acceptance criteria are met, tests are added or updated appropriately, validation commands are run, PROGRESS.md is updated, and DEVLOG.md is appended.
+
+Stay strictly within Mxx scope. Do not touch /private.
+
+If blocked by a concrete error or missing prerequisite, stop only after writing the blocker, exact error, files changed, and next recommended action in DEVLOG.md.

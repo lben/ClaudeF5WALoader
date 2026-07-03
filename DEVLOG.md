@@ -1,0 +1,20 @@
+# DEVLOG.md — append-only implementation log
+
+## 2026-07-03 — P0 Bootstrap — complete
+
+- **Summary:** Initialized git repo (`main`), uv project with src layout
+  (`waloader`, `waloader_sdk`), full stack pinned in `pyproject.toml`
+  (streamlit/pandas/duckdb/plotly/pyarrow/openpyxl/xlrd/pydantic/psutil/rich/
+  argon2-cffi/packaging; dev: pytest/ruff), pytest markers
+  (`integration`/`e2e`/`caddy`, deselected by default so the default suite is
+  offline), ruff config, `.gitignore` protecting `data/`, `private/`, and local
+  config, `.python-version` = 3.12.
+- **Files changed:** .gitignore, pyproject.toml, .python-version,
+  src/waloader/__init__.py, src/waloader_sdk/__init__.py,
+  tests/test_bootstrap.py, PROGRESS.md, DEVLOG.md, uv.lock.
+- **Tests added:** tests/test_bootstrap.py (imports + version).
+- **Validation:** `uv sync` OK; `uv run pytest` → 1 passed; `uv run ruff check .`
+  → clean.
+- **Known issues:** none.
+- **Next:** P1 Foundation (config system, logging, path utils + private/ guard,
+  SQLite layer, migrations, models, repositories).
