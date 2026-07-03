@@ -78,3 +78,29 @@
 - **Known issues:** none.
 - **Next:** P4 Runtime services (ports, process manager, Caddy, deployment
   pipeline, orchestration).
+
+## 2026-07-03 — P4 Runtime services — complete
+
+- **Summary:** State machine (8 states, explicit transition map, enforced via
+  states.transition with fresh re-read); port allocation (BEGIN IMMEDIATE
+  transaction, DB reservation + real bind test, stable reuse incl. the
+  own-process-occupies-port update case, exhaustion error); process manager
+  (detached spawn POSIX/Windows, pid+create_time identity, psutil tree
+  terminate->kill, child command with per-version venv + streamlit flags +
+  bind-address auto + baseUrlPath, WALOADER_* env injection with PYTHONPATH
+  prepend); Caddy service (DB-generated Caddyfile with /waloader + /apps/*
+  routes, validate/start/stop/reload/refresh/status, pidfile with
+  create_time); deployment pipeline (parse -> version -> policy -> per-version
+  venv + install [streamlit + sdk deps auto-added] -> app tests -> port ->
+  swap -> caddy -> initial health poll; pre-swap failures leave the old
+  version running, post-swap failures -> deployment_failed with runtime.log
+  tail; per-step redacted copyable error block; old-venv cleanup) and
+  create/redeploy orchestration with derived retry kinds.
+- **Design note:** venvs are per-version (runtime/venvs/000001) so an update
+  never mutates the environment of the live old process; prior venvs are
+  removed after a successful swap.
+- **Validation:** `uv run pytest` → 186 passed; `uv run pytest -m caddy` →
+  1 passed (real caddy v2.11.4 validated the generated Caddyfile);
+  `uv run ruff check .` → clean.
+- **Known issues:** none.
+- **Next:** P5 Health & notifications.

@@ -1,8 +1,8 @@
 # PROGRESS.md — WALoader build status
 
 **Active goal:** `goals/G01-waloader-complete.md` (the only goal)
-**Current phase:** P4 — Runtime services (in progress)
-**Last validation:** 2026-07-03 P3: `uv run pytest` → 138 passed (+1 integration); ruff clean
+**Current phase:** P5 — Health & notifications (in progress)
+**Last validation:** 2026-07-03 P4: `uv run pytest` → 186 passed; `-m caddy` → 1 passed (real binary); ruff clean
 
 ## Phase checklist
 
@@ -17,7 +17,7 @@
 - [x] **P3 App core services** — slug service, bundle parser + safety validator,
       filesystem layout, versioning service, dependency policy validator,
       uv command/env builder + redaction, uv preflight
-- [ ] **P4 Runtime services** — port allocation, process manager, Caddyfile generation,
+- [x] **P4 Runtime services** — port allocation, process manager, Caddyfile generation,
       Caddy wrapper, deployment pipeline, create/retry/update orchestration
 - [ ] **P5 Health & notifications** — health checks, state machine, startup
       reconciliation, notification service + send_mail logging stub, crash detection

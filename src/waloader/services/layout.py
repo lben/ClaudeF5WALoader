@@ -2,7 +2,7 @@
 
     data/apps/<slug>/
       versions/000001/{source/, manifest.json, uploaded_bundle.md}
-      runtime/venv/
+      runtime/venvs/000001/
       datasets/<concept>/
       user_files/<app_user_id>/
 
@@ -49,8 +49,14 @@ def runtime_dir(config: WALoaderConfig, slug: str) -> Path:
     return app_dir(config, slug) / "runtime"
 
 
-def venv_dir(config: WALoaderConfig, slug: str) -> Path:
-    return runtime_dir(config, slug) / "venv"
+def venvs_root(config: WALoaderConfig, slug: str) -> Path:
+    return runtime_dir(config, slug) / "venvs"
+
+
+def venv_dir(config: WALoaderConfig, slug: str, version_number: int) -> Path:
+    """Per-version venv: a new version installs beside the running old one, so
+    updates never mutate the environment a live process is using (G01 §3.7)."""
+    return venvs_root(config, slug) / version_dirname(version_number)
 
 
 def datasets_dir(config: WALoaderConfig, slug: str) -> Path:
