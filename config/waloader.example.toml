@@ -1,0 +1,147 @@
+# WALoader example configuration.
+#
+# Copy this file to config/waloader.toml (git-ignored) and edit for THIS machine,
+# or point $WALOADER_CONFIG at a TOML file anywhere else.
+# Every key shown here with its default. Omit anything you don't need to change —
+# unknown keys are a hard startup error (no undocumented settings).
+# Full reference: docs/configuration.md
+#
+# SAFE TO COMMIT: this example file, with placeholder values only.
+# NEVER COMMIT: your real waloader.toml if it references machine paths you
+# consider sensitive; never commit uv config files or credentials of any kind.
+
+[server]
+# Hostname used when displaying app URLs (clean Caddy URLs and direct-port URLs).
+public_host = "localhost"
+
+[paths]
+# The one bootstrap setting everything else derives from. Relative paths resolve
+# against the working directory WALoader is started from.
+data_dir = "data"
+# Optional explicit overrides; empty string means "derive from data_dir":
+#   database_path     -> <data_dir>/waloader.db
+#   apps_dir          -> <data_dir>/apps
+#   logs_dir          -> <data_dir>/logs
+#   backups_dir       -> <data_dir>/backups
+#   archives_dir      -> <data_dir>/archives
+#   uploads_dir       -> <data_dir>/uploads
+#   tmp_dir           -> <data_dir>/tmp
+#   uv_cache_dir      -> <data_dir>/uv-cache
+#   caddy_config_path -> <data_dir>/caddy/Caddyfile
+#   caddy_logs_dir    -> <data_dir>/logs/caddy
+database_path = ""
+apps_dir = ""
+logs_dir = ""
+backups_dir = ""
+archives_dir = ""
+uploads_dir = ""
+tmp_dir = ""
+uv_cache_dir = ""
+caddy_config_path = ""
+caddy_logs_dir = ""
+
+[executables]
+# Empty python_binary -> shutil.which("python3.12"), else WALoader's own interpreter.
+# Examples:
+#   macOS:   "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3.12"
+#   Windows: "C:\\Users\\<you>\\AppData\\Local\\Programs\\Python\\Python312\\python.exe"
+#   RHEL:    "/usr/local/bin/python3.12"
+python_binary = ""
+# "uv" resolves on PATH; set an absolute path if uv is not on PATH.
+uv_binary = "uv"
+# Required only when [caddy].enabled = true. Empty -> shutil.which("caddy").
+#   macOS: "/opt/homebrew/bin/caddy"   Windows: "C:\\path\\to\\caddy_windows_amd64.exe"
+caddy_binary = ""
+
+[uv]
+# Path to a uv config file with private package index credentials (corporate
+# environments). PATH ONLY — WALoader never reads, prints, or logs its CONTENTS.
+# Leave empty at home (public PyPI).
+config_file = ""
+# Shared uv cache for all child app venvs. Empty -> <data_dir>/uv-cache.
+cache_dir = ""
+# true on corporate machines whose artifact repository needs the OS cert store.
+system_certs = false
+# Optional custom CA bundle (exported as SSL_CERT_FILE / SSL_CERT_DIR when set).
+ssl_cert_file = ""
+ssl_cert_dir = ""
+# Hosts to allow without TLS verification. Use only when the operator says so.
+allow_insecure_hosts = []
+# Packages resolved (never installed) by the preflight connectivity check.
+preflight_packages = ["pandas"]
+
+[ports]
+waloader_port = 8501
+child_app_start = 8601
+child_app_end = 8999
+caddy_public_port = 8080
+
+[caddy]
+# When true: clean URLs http://<public_host>:<caddy_public_port>/waloader and
+# /apps/<slug>; requires a caddy binary. When false: direct port URLs only.
+enabled = false
+# Localhost port for Caddy's admin API (used by reload). Change on conflict.
+admin_port = 2019
+
+[dependencies_policy]
+# false -> child apps may only use the approved base set ([apps].base_dependencies).
+allow_app_dependencies = true
+# Allow "pkg @ https://..." direct URL dependencies.
+allow_direct_url_dependencies = false
+# Allow git+https://... and other VCS dependencies.
+allow_vcs_dependencies = false
+# Allow local path / file:// dependencies.
+allow_path_dependencies = false
+# true -> new dependencies block deployment until an admin approves them.
+require_admin_approval_for_new_dependencies = false
+
+[uploads]
+max_markdown_bundle_mb = 10
+max_dataset_file_mb = 250
+max_bundle_files = 200
+allowed_dataset_extensions = [".csv", ".xlsx", ".xls", ".parquet"]
+default_excel_sheet_name = "Sheet1"
+
+[health]
+# Background health check cadence for running apps.
+interval_seconds = 30
+http_timeout_seconds = 5
+# An app must live this long past initial health checks before a later death
+# counts as a production crash (and can trigger a crash email).
+grace_period_seconds = 180
+# Consecutive failed checks before a running app is marked failed.
+consecutive_failures_threshold = 3
+# How long deployment waits for the first successful health check.
+initial_check_timeout_seconds = 30
+
+[notifications]
+crash_emails_enabled = true
+# Sender address passed to send_mail (see docs — the shipped mailer only logs).
+sender = "waloader@localhost"
+# Additional recipients CC'd on every crash email (e.g. the operator).
+admin_cc = []
+
+[retention]
+backup_days = 183
+log_days = 183
+deleted_app_days = 183
+
+[database]
+# Run pending SQL migrations automatically at startup.
+auto_migrate = true
+
+[debug]
+rich_tracebacks_enabled = true
+rich_tracebacks_show_locals = false
+
+[apps]
+# Bind address for child apps: "auto" = 127.0.0.1 behind Caddy, 0.0.0.0 direct.
+bind_address = "auto"
+# Graceful stop window before a child process tree is killed.
+stop_timeout_seconds = 10
+# Timeout for running an uploaded app's own tests during deployment.
+test_timeout_seconds = 300
+# Installed when an app has no pyproject.toml (the approved base set).
+base_dependencies = ["streamlit", "pandas", "plotly", "duckdb", "pyarrow"]
+# Always installed into child venvs (waloader_sdk.auth needs argon2).
+sdk_dependencies = ["argon2-cffi"]

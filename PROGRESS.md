@@ -1,8 +1,8 @@
 # PROGRESS.md — WALoader build status
 
 **Active goal:** `goals/G01-waloader-complete.md` (the only goal)
-**Current phase:** P2 — Security & users (in progress)
-**Last validation:** 2026-07-03 P1: `uv run pytest` → 51 passed; `uv run ruff check .` → clean
+**Current phase:** P3 — App core services (in progress)
+**Last validation:** 2026-07-03 P2: `uv run pytest` → 67 passed; `uv run ruff check .` → clean
 
 ## Phase checklist
 
@@ -11,8 +11,9 @@
 - [x] **P1 Foundation** — config system + derived paths, logging + Rich, path utils +
       `private/` guard, SQLite layer (WAL), migrations framework + 001_initial,
       domain models, repositories
-- [ ] **P2 Security & users** — argon2 hashing, WALoader users, login/session service,
+- [x] **P2 Security & users** — argon2 hashing, WALoader users, login/session service,
       admin bootstrap (CLI + first-run), authorization checks, config docs framework
+      (create-admin CLI lands in P8 with the other CLIs; service + first-run path done)
 - [ ] **P3 App core services** — slug service, bundle parser + safety validator,
       filesystem layout, versioning service, dependency policy validator,
       uv command/env builder + redaction, uv preflight

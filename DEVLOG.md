@@ -38,3 +38,22 @@
 - **Known issues:** none.
 - **Next:** P2 Security & users (argon2, sessions, admin bootstrap,
   authorization, config docs framework).
+
+## 2026-07-03 — P2 Security & users — complete
+
+- **Summary:** argon2 password hashing + strength check; users_service
+  (create/authenticate/change_password/admin_reset/set_active, audit-logged,
+  bootstrap_admin only-when-empty); authorization (require_admin,
+  can_manage_app/require_app_manager); config docs framework:
+  config/waloader.example.toml (every setting, commented) and
+  docs/configuration.md (full per-setting reference). Added doc-sync tests: the
+  example TOML must cover exactly the config model's key set with default
+  values, and configuration.md must mention every setting — undocumented
+  settings now fail CI, not just review.
+- **Files changed:** src/waloader/services/{__init__,security,users_service,
+  authorization}.py, config/waloader.example.toml, docs/configuration.md,
+  tests/test_security_users.py
+- **Validation:** `uv run pytest` → 67 passed; `uv run ruff check .` → clean.
+- **Known issues:** none.
+- **Next:** P3 App core services (slugs, bundle parser/validator, layout,
+  versioning, dependency policy, uv builder + redaction, preflight).
