@@ -57,3 +57,24 @@
 - **Known issues:** none.
 - **Next:** P3 App core services (slugs, bundle parser/validator, layout,
   versioning, dependency policy, uv builder + redaction, preflight).
+
+## 2026-07-03 — P3 App core services — complete
+
+- **Summary:** slug service (slugify + reserved names + live availability with
+  exclude-self for edits); markdown bundle parser implementing the exact G01
+  §4.4 contract (first-fence metadata block 'toml waloader-bundle', '## file:'
+  sections, CommonMark longer-fence nesting, every rejection rule incl. raw
+  '.'/'..'/empty segments, private/, hidden allowlist .streamlit + .gitignore,
+  size/UTF-8 byte boundary); filesystem layout service (DB stores POSIX paths
+  relative to data_dir; resolve/relativize at edges); versioning service
+  (source tree + manifest.json with sha256s + byte-exact uploaded_bundle.md);
+  dependency policy validator (PEP 508 classify url/vcs/path, all 5 flags,
+  approval mode, copyable violations block); uv command/env builder
+  (UV_CONFIG_FILE/UV_CACHE_DIR/UV_SYSTEM_CERTS/SSL_*, --python,
+  --allow-insecure-host, credential redaction) and preflight service
+  (dedicated venv + dry-run resolve, injectable runner, redacted output).
+- **Validation:** `uv run pytest` → 138 passed; `uv run pytest -m integration`
+  → 1 passed (real uv against PyPI on this Mac); `uv run ruff check .` → clean.
+- **Known issues:** none.
+- **Next:** P4 Runtime services (ports, process manager, Caddy, deployment
+  pipeline, orchestration).
