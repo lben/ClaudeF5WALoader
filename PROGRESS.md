@@ -1,14 +1,14 @@
 # PROGRESS.md — WALoader build status
 
 **Active goal:** `goals/G01-waloader-complete.md` (the only goal)
-**Current phase:** P1 — Foundation (in progress)
-**Last validation:** 2026-07-03 P0: `uv run pytest` → 1 passed; `uv run ruff check .` → clean
+**Current phase:** P2 — Security & users (in progress)
+**Last validation:** 2026-07-03 P1: `uv run pytest` → 51 passed; `uv run ruff check .` → clean
 
 ## Phase checklist
 
 - [x] **P0 Bootstrap** — git repo, .gitignore, uv project (pyproject, src layout, lock),
       pytest/ruff harness, PROGRESS.md, DEVLOG.md, first trivial test green
-- [ ] **P1 Foundation** — config system + derived paths, logging + Rich, path utils +
+- [x] **P1 Foundation** — config system + derived paths, logging + Rich, path utils +
       `private/` guard, SQLite layer (WAL), migrations framework + 001_initial,
       domain models, repositories
 - [ ] **P2 Security & users** — argon2 hashing, WALoader users, login/session service,

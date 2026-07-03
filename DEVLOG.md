@@ -18,3 +18,23 @@
 - **Known issues:** none.
 - **Next:** P1 Foundation (config system, logging, path utils + private/ guard,
   SQLite layer, migrations, models, repositories).
+
+## 2026-07-03 — P1 Foundation — complete
+
+- **Summary:** Config system (pydantic, TOML + $WALOADER_CONFIG discovery,
+  extra="forbid" so undocumented settings hard-fail, derived paths from
+  paths.data_dir, DB-override overlay with per-key source tracking, paths.*
+  excluded from DB edits); path utilities with repo-local `private/` guard
+  (macOS system /private explicitly exempt) and safe_join bundle-path guard;
+  logging (rotating app/error logs + Rich tracebacks); SQLite layer (WAL,
+  busy_timeout 5000, FKs ON) with NNN_name.sql migrations framework +
+  001_initial full schema (14 tables); dataclass models; repositories for
+  users, apps, versions, deployments, runtime, datasets, app_users, settings,
+  notifications, approvals, audit.
+- **Files changed:** src/waloader/{util,config,paths,logging_setup,db,models}.py,
+  src/waloader/migrations/001_initial.sql, src/waloader/repositories/*,
+  tests/{conftest,test_config,test_paths,test_db_migrations,test_repositories}.py
+- **Validation:** `uv run pytest` → 51 passed; `uv run ruff check .` → clean.
+- **Known issues:** none.
+- **Next:** P2 Security & users (argon2, sessions, admin bootstrap,
+  authorization, config docs framework).
