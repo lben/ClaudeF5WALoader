@@ -80,7 +80,7 @@ class CheckOutcome:
 
 
 def check_app(
-    conn: "sqlite3.Connection",
+    conn: sqlite3.Connection,
     config: WALoaderConfig,
     app: App,
     *,
@@ -116,7 +116,7 @@ def check_app(
 
 
 def check_all_running(
-    conn: "sqlite3.Connection", config: WALoaderConfig, *, _prober=None
+    conn: sqlite3.Connection, config: WALoaderConfig, *, _prober=None
 ) -> list[CheckOutcome]:
     from waloader.repositories import apps as apps_repo
     from waloader.services import states as states_mod
