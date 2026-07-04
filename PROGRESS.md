@@ -1,8 +1,8 @@
 # PROGRESS.md — WALoader build status
 
 **Active goal:** `goals/G01-waloader-complete.md` (the only goal)
-**Current phase:** P11 — Admin panel (in progress)
-**Last validation:** 2026-07-03 P10: `uv run pytest` → 305 passed; ruff clean
+**Current phase:** P12 — Backups/retention/maintenance (in progress)
+**Last validation:** 2026-07-03 P11: `uv run pytest` → 311 passed; ruff clean
 
 ## Phase checklist
 
@@ -31,7 +31,7 @@
       create-app screen with availability check, success/error/retry flows, gear modal
 - [x] **P10 Dataset & user-management UI** — concepts mapping screen, admin users UI,
       app-owner app users UI, observations/attachments UI
-- [ ] **P11 Admin panel** — configuration, processes, Caddy panels
+- [x] **P11 Admin panel** — configuration, processes, Caddy panels
 - [ ] **P12 Backups/retention/maintenance** — backup service, archives, retention
       cleanups, background maintenance thread
 - [ ] **P13 Documentation** — all docs incl. bundle contract, LLM prompt template,

@@ -236,3 +236,26 @@
 - **Known issues:** file-upload widget flows aren't drivable by AppTest;
   covered by service tests + manual smoke checklist.
 - **Next:** P11 Admin panel.
+
+## 2026-07-03 — P11 Admin panel — complete
+
+- **Summary:** Configuration panel (every editable section as a form with
+  type-appropriate widgets — toggle/number/text/JSON-list — each showing
+  source + default in help; whole-overlay validation via apply_db_overrides
+  BEFORE persisting so an invalid save changes nothing; per-section
+  clear-overrides; [paths] read-only with the derived-paths table and config
+  file location; restart-needed caveat surfaced). Processes panel (overview
+  dataframe, run-reconciliation with actions/warnings report, resume
+  selected/all with per-app results). Caddy panel (status line incl. routes
+  count + binary/config paths, generate/validate/start/stop/reload buttons
+  with result surface, generated Caddyfile viewer, caddy.log/access.log
+  tails, direct-port-mode hint when disabled). Admin section in navigation
+  now: Configuration, Processes, Caddy, WALoader users. AppTest coverage:
+  non-admin blocked, setting edit persists as DB override + effective config
+  reflects it + source flips to "db", invalid port range rejected without
+  saving, paths not editable, reconcile flow with resume candidate, caddy
+  status/generate.
+- **Validation:** `uv run pytest` → 311 passed; `uv run ruff check .` → clean.
+- **Known issues:** none.
+- **Next:** P12 background maintenance thread + operator triggers (services
+  already landed in P8).

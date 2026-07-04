@@ -8,6 +8,9 @@ from waloader.services import authorization
 from waloader.ui import (
     common,
     page_account,
+    page_admin_caddy,
+    page_admin_processes,
+    page_admin_settings,
     page_admin_users,
     page_app_users,
     page_create,
@@ -45,6 +48,12 @@ _sections: dict[str, list[st.Page]] = {
 }
 if authorization.is_admin(_user):
     _sections["Admin"] = [
+        st.Page(page_admin_settings.render, title="Configuration", icon="⚙️",
+                url_path="admin-settings"),
+        st.Page(page_admin_processes.render, title="Processes", icon="📊",
+                url_path="admin-processes"),
+        st.Page(page_admin_caddy.render, title="Caddy", icon="🔀",
+                url_path="admin-caddy"),
         st.Page(page_admin_users.render, title="WALoader users", icon="🛡",
                 url_path="admin-users"),
     ]
