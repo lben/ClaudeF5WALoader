@@ -3,9 +3,11 @@
 This file contains the durable operating rules for any coding agent working in this
 repository (Claude Code / Fable 5 at home, GPT 5.5 + /plan at work). It deliberately
 contains **rules only**. The complete product specification and build plan live in the
-active goal file under `goals/` (currently `goals/G01-waloader-complete.md`), which is
-the spec of record. `WALoaderInitialWriteup.txt` is the historical first draft — do not
-implement from it; where it disagrees with the goal file, the goal file wins.
+active goal file under `goals/` (currently `goals/G02-backups-reset-migration.md`;
+`goals/G01-waloader-complete.md` is complete — v0.1.0 — and remains the base spec of
+record for everything G02 does not touch). `WALoaderInitialWriteup.txt` is the
+historical first draft — do not implement from it; where it disagrees with the goal
+files, the goal files win.
 
 ## What WALoader is
 
