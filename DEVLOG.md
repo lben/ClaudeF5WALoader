@@ -209,3 +209,30 @@
 - **Known issues:** gear-dialog flows (dialog interactions) are covered by the
   manual smoke checklist; services underneath are fully unit-tested.
 - **Next:** P10 Dataset & user-management UI.
+
+## 2026-07-03 — P10 Dataset & user-management UI — complete
+
+- **Summary:** Datasets page (app selector; add-concept form with validation
+  errors; per-concept card with italic "No data uploaded yet" empty state,
+  current-file summary + schema expander, delete-with-confirmation; uploader
+  per concept with Excel sheet-name input prefilled Sheet1 and required; first
+  upload stores directly, replacements auto-show the schema diff in a copyable
+  block with "a mismatch may be fine if the app code changed" note and require
+  explicit confirmation). App users page (per-app toggle for Users Management
+  Support, create-user form, per-user panels: email/observations edit,
+  deactivate/reactivate, delete-with-confirm incl. files, owner password
+  reset, attachments list/download/remove/add with notes). Admin-only
+  WALoader users page (create platform users incl. admins,
+  deactivate/reactivate others, password reset; self-deactivation blocked).
+  Navigation now has Apps/You/Admin sections; gear dialog points at the real
+  pages. AppTest coverage for all three pages.
+- **Gotchas fixed:** AppTest flattens widgets column-wise, so tests select
+  text inputs by LABEL (positional indices silently hit the wrong fields —
+  one earlier assertion passed for the wrong reason and now also verifies
+  email + argon2-authenticates the created password); toggle handlers now use
+  the service's returned App instead of st.rerun() (rerun looped under
+  AppTest).
+- **Validation:** `uv run pytest` → 305 passed; `uv run ruff check .` → clean.
+- **Known issues:** file-upload widget flows aren't drivable by AppTest;
+  covered by service tests + manual smoke checklist.
+- **Next:** P11 Admin panel.

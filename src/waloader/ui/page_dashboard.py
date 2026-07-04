@@ -62,12 +62,11 @@ def _gear_dialog(app_id: int) -> None:
                  "(manage them from the App users page).",
         )
         if enabled != bool(app.user_mgmt_enabled):
-            app_users_service.set_user_management(conn, app, enabled,
-                                                  actor=user.username)
-            st.rerun()
+            app = app_users_service.set_user_management(conn, app, enabled,
+                                                        actor=user.username)
 
-        st.caption("*Dataset Concepts mapping: see the “Datasets” page "
-                   "(arrives with phase P10).*")
+        st.caption("*Dataset Concepts: use the **Datasets** page in the sidebar. "
+                   "App users: the **App users** page.*")
 
         # --- lifecycle actions with confirmation ---------------------------
         st.divider()

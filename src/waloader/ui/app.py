@@ -4,7 +4,16 @@ from __future__ import annotations
 
 import streamlit as st
 
-from waloader.ui import common, page_account, page_create, page_dashboard
+from waloader.services import authorization
+from waloader.ui import (
+    common,
+    page_account,
+    page_admin_users,
+    page_app_users,
+    page_create,
+    page_dashboard,
+    page_datasets,
+)
 
 st.set_page_config(page_title="WALoader", page_icon="📦", layout="wide")
 
@@ -18,12 +27,26 @@ with st.sidebar:
     if st.button("Log out", key="sidebar_logout"):
         common.logout()
 
-_pages = [
-    st.Page(page_dashboard.render, title="Dashboard", icon="🏠",
-            url_path="dashboard", default=True),
-    st.Page(page_create.render, title="Create new app", icon="➕",
-            url_path="create"),
-    st.Page(page_account.render, title="Account", icon="🔑", url_path="account"),
-]
+_sections: dict[str, list[st.Page]] = {
+    "Apps": [
+        st.Page(page_dashboard.render, title="Dashboard", icon="🏠",
+                url_path="dashboard", default=True),
+        st.Page(page_create.render, title="Create new app", icon="➕",
+                url_path="create"),
+        st.Page(page_datasets.render, title="Datasets", icon="🗃",
+                url_path="datasets"),
+        st.Page(page_app_users.render, title="App users", icon="👥",
+                url_path="app-users"),
+    ],
+    "You": [
+        st.Page(page_account.render, title="Account", icon="🔑",
+                url_path="account"),
+    ],
+}
+if authorization.is_admin(_user):
+    _sections["Admin"] = [
+        st.Page(page_admin_users.render, title="WALoader users", icon="🛡",
+                url_path="admin-users"),
+    ]
 
-st.navigation(_pages).run()
+st.navigation(_sections).run()
