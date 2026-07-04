@@ -277,3 +277,28 @@
 - **Validation:** `uv run pytest` → 314 passed; `uv run ruff check .` → clean.
 - **Known issues:** none.
 - **Next:** P13 Documentation.
+
+## 2026-07-03 — P13 Documentation — complete
+
+- **Summary:** All docs written and current: markdown-bundle-contract (exact
+  format incl. nested-fence rule and rejection list), llm-bundle-prompt
+  (copy-paste template for finance users' coding LLMs, with standalone-
+  fallback SDK patterns), dataset-concepts-contract, process-management,
+  caddy-reverse-proxy (incl. behavior matrix), user-management (incl. the
+  send_mail stub replacement instructions + crash-email rules),
+  dependency-policy, troubleshooting (incl. RHEL deployment runbook),
+  manual-smoke-checklist, README (quickstart bash+PowerShell, docs index,
+  trust model). examples/sample-bundle.md added — a working bundle
+  demonstrating metadata, nested 4-backtick fences, pyproject, tests,
+  .streamlit + .gitignore allowlist, SDK usage with local fallback; it
+  doubles as the e2e fixture. NEW tests/test_e2e.py (marker e2e): real
+  create→deploy (uv install, detached streamlit, app's own tests ran)→HTTP
+  health→dataset upload+replacement diff→update to v2 on same port with venv
+  cleanup→stop/resume→health-service check→soft delete+archive→clean
+  reconcile. Passed on this Mac in ~13s (warm uv cache reused via
+  `uv cache dir`).
+- **Validation:** unit 314 passed; `-m e2e` 1 passed; `-m "integration or
+  caddy"` 4 passed; ruff clean.
+- **Known issues:** none.
+- **Next:** P14 hardening & final verification (doctor, serve + manual
+  checklist, DoD closure, v0.1.0 tag).

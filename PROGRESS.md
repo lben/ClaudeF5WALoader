@@ -1,8 +1,8 @@
 # PROGRESS.md — WALoader build status
 
 **Active goal:** `goals/G01-waloader-complete.md` (the only goal)
-**Current phase:** P13 — Documentation (in progress)
-**Last validation:** 2026-07-03 P12: `uv run pytest` → 314 passed; ruff clean
+**Current phase:** P14 — Hardening & final verification (in progress)
+**Last validation:** 2026-07-03 P13: unit 314 passed; e2e 1 passed (real deployment); integration+caddy 4 passed; ruff clean
 
 ## Phase checklist
 
@@ -34,7 +34,7 @@
 - [x] **P11 Admin panel** — configuration, processes, Caddy panels
 - [x] **P12 Backups/retention/maintenance** — backup service, archives, retention
       cleanups, background maintenance thread
-- [ ] **P13 Documentation** — all docs incl. bundle contract, LLM prompt template,
+- [x] **P13 Documentation** — all docs incl. bundle contract, LLM prompt template,
       manual smoke checklist, README
 - [ ] **P14 Hardening & final verification** — polish, full test review, e2e + doctor +
       manual checklist on this machine, tag v0.1.0
