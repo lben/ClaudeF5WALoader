@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "waloader",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "python", "-m", "waloader.tools.serve"],
+      "port": 8501
+    }
+  ]
+}

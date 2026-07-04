@@ -302,3 +302,30 @@
 - **Known issues:** none.
 - **Next:** P14 hardening & final verification (doctor, serve + manual
   checklist, DoD closure, v0.1.0 tag).
+
+## 2026-07-04 — P14 Hardening & final verification — complete — GOAL DONE
+
+- **Summary:** Coverage-gap review against G01 §6 added two missing pieces:
+  tests/test_e2e_caddy.py (caddy marker: REAL proxied round-trip — deploy the
+  sample bundle with caddy.enabled, start a real Caddy on :48080, hit the
+  app's health endpoint and page THROUGH the proxy, verify the 404 handler
+  and hot reload, clean stop) and an explicit test that user stop/restart
+  never send crash emails. Real-browser verification of the served UI via the
+  preview harness: first-run bootstrap created the admin and auto-logged-in;
+  post-refresh login worked; dashboard rendered the deployed sample app card
+  (🟢 running · v1 · port 8601 · live last-healthy timestamp from the
+  background worker); the child app itself served at :8601 with title
+  "Client Positions" and metric "Clients: 3" — i.e. it read its uploaded
+  Dataset Concept through waloader_sdk -> canonical parquet. Local
+  verification data wiped afterwards; .claude/launch.json added for future
+  preview runs.
+- **Final validation (this Mac):** unit 315 passed · `-m integration` 2
+  passed · `-m e2e` 1 passed (real deployment round-trip ~14s) · `-m caddy`
+  3 passed (incl. proxied round-trip) · `uv run ruff check .` clean ·
+  `doctor` full run all checks passed. PROGRESS.md carries the DoD closure
+  and the accepted-limitations list.
+- **Known issues:** none. Recommended before first production use: a human
+  walk of docs/manual-smoke-checklist.md (file-upload widgets and Caddy-mode
+  browsing can't be fully automated), and at work: replace the send_mail stub
+  body per docs/user-management.md.
+- **Next:** none — goal complete. Tagged v0.1.0.

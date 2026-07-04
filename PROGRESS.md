@@ -1,8 +1,12 @@
 # PROGRESS.md — WALoader build status
 
-**Active goal:** `goals/G01-waloader-complete.md` (the only goal)
-**Current phase:** P14 — Hardening & final verification (in progress)
-**Last validation:** 2026-07-03 P13: unit 314 passed; e2e 1 passed (real deployment); integration+caddy 4 passed; ruff clean
+**Active goal:** `goals/G01-waloader-complete.md` — **COMPLETE** (v0.1.0)
+**Current phase:** all phases done (P0–P14)
+**Last validation:** 2026-07-03 P14 final: unit 315 passed · integration 2 passed ·
+e2e 1 passed (real deployment) · caddy 3 passed (real proxied round-trip) ·
+ruff clean · doctor all checks passed (full, with network) · real-browser
+verification of the served UI (bootstrap → login → dashboard card → deployed
+child app reading its dataset via the SDK)
 
 ## Phase checklist
 
@@ -12,8 +16,8 @@
       `private/` guard, SQLite layer (WAL), migrations framework + 001_initial,
       domain models, repositories
 - [x] **P2 Security & users** — argon2 hashing, WALoader users, login/session service,
-      admin bootstrap (CLI + first-run), authorization checks, config docs framework
-      (create-admin CLI lands in P8 with the other CLIs; service + first-run path done)
+      admin bootstrap (first-run screen + create-admin CLI in P8), authorization checks,
+      config docs framework with doc-sync tests
 - [x] **P3 App core services** — slug service, bundle parser + safety validator,
       filesystem layout, versioning service, dependency policy validator,
       uv command/env builder + redaction, uv preflight
@@ -26,25 +30,43 @@
       workflow, waloader_sdk.datasets
 - [x] **P7 User management module** — per-app toggle, app users CRUD, observations,
       attachments, login requirement, waloader_sdk.auth
-- [x] **P8 CLI tools** — db, appctl, caddyctl, maintenance, users, serve, doctor (P12 service layer — backups, archive, retention — pulled forward; P12 keeps the background thread)
+- [x] **P8 CLI tools** — db, appctl, caddyctl, maintenance, users, serve, doctor
+      (backup/archive/retention services pulled forward from P12)
 - [x] **P9 WALoader UI core** — login/logout/password change, dashboard + cards,
       create-app screen with availability check, success/error/retry flows, gear modal
 - [x] **P10 Dataset & user-management UI** — concepts mapping screen, admin users UI,
       app-owner app users UI, observations/attachments UI
-- [x] **P11 Admin panel** — configuration, processes, Caddy panels
-- [x] **P12 Backups/retention/maintenance** — backup service, archives, retention
-      cleanups, background maintenance thread
-- [x] **P13 Documentation** — all docs incl. bundle contract, LLM prompt template,
-      manual smoke checklist, README
-- [ ] **P14 Hardening & final verification** — polish, full test review, e2e + doctor +
-      manual checklist on this machine, tag v0.1.0
+- [x] **P11 Admin panel** — configuration (DB overrides + sources), processes
+      (reconcile/resume/maintenance), Caddy panels
+- [x] **P12 Backups/retention/maintenance** — background worker (health loop + daily
+      jobs in-process), operator triggers, background_enabled setting
+- [x] **P13 Documentation** — all guides incl. bundle contract, LLM prompt template,
+      sample bundle, manual smoke checklist, README; real e2e deployment test
+- [x] **P14 Hardening & final verification** — caddy proxied round-trip e2e,
+      no-email-on-stop/restart tests, real-browser UI verification, final DoD pass,
+      tag v0.1.0
 
-## Active acceptance criteria (P0)
+## Definition of Done (G01 §9) — final status
 
-- `uv sync` succeeds; `uv.lock` committed
-- `uv run pytest` green (bootstrap test)
-- `uv run ruff check .` clean
-- git history started with an initial commit
+1. ✅ Every §4 capability implemented with service-layer paths and traceable tests
+   (§6 list reviewed; 321 tests across unit/integration/e2e/caddy + AppTest UI suites)
+2. ✅ All phases P0–P14 checked off with per-phase commits
+3. ✅ On this machine: unit 315 · integration 2 · e2e 1 · caddy 3 — all green; ruff clean
+4. ✅ doctor passes (full, network); serve boots; core smoke-checklist flows verified
+   in a real browser (bootstrap, login, dashboard card + live health badge, deployed
+   app serving its Dataset Concept). A full human walk of
+   docs/manual-smoke-checklist.md is recommended before first production use,
+   including Caddy-mode browsing.
+5. ✅ All docs exist and match behavior; every setting documented (enforced by tests)
+6. ✅ argon2 everywhere; redaction tested; `private/` guard tested; no secrets committed
+7. ✅ No open blockers; final DEVLOG entry; tagged v0.1.0
+
+## Known limitations (accepted, documented)
+
+- Health checks/maintenance run only while WALoader runs (no cron/systemd by design)
+- Streamlit sessions don't survive a full browser refresh (login again)
+- The shipped `send_mail` is a logging stub — replace its body at work
+- Bundles are text-only; binary data flows through Dataset Concepts
 
 ## Known blockers
 

@@ -112,6 +112,27 @@ class TestLifecycle:
         app = apps_repo.get(conn, app.id)
         assert app.state == "stopped" and not processes.is_app_running(conn, app)
 
+    def test_stop_and_restart_never_send_crash_email(
+        self, conn, fast_config, user: User, monkeypatch
+    ) -> None:
+        """G01 §4.14: user-triggered stop/restart are never crash-notified."""
+        from waloader.notifications import mailer
+
+        sent: list = []
+        monkeypatch.setattr(
+            mailer, "send_mail",
+            lambda **kwargs: sent.append(kwargs),
+        )
+        app = _deployed_app(conn, user, "Quiet", "quiet")
+        lifecycle.start(conn, fast_config, app, _launcher=_sleeper_launcher,
+                        _prober=_healthy)
+        app = apps_repo.get(conn, app.id)
+        lifecycle.stop(conn, fast_config, app, actor="alice")
+        app = apps_repo.get(conn, app.id)
+        lifecycle.restart(conn, fast_config, app, _launcher=_sleeper_launcher,
+                          _prober=_healthy)
+        assert sent == []
+
     def test_restart_changes_pid(self, conn, fast_config, user: User) -> None:
         app = _deployed_app(conn, user, "A", "a")
         lifecycle.start(conn, fast_config, app, _launcher=_sleeper_launcher,
