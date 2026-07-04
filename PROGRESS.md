@@ -1,8 +1,8 @@
 # PROGRESS.md — WALoader build status
 
 **Active goal:** `goals/G01-waloader-complete.md` (the only goal)
-**Current phase:** P12 — Backups/retention/maintenance (in progress)
-**Last validation:** 2026-07-03 P11: `uv run pytest` → 311 passed; ruff clean
+**Current phase:** P13 — Documentation (in progress)
+**Last validation:** 2026-07-03 P12: `uv run pytest` → 314 passed; ruff clean
 
 ## Phase checklist
 
@@ -32,7 +32,7 @@
 - [x] **P10 Dataset & user-management UI** — concepts mapping screen, admin users UI,
       app-owner app users UI, observations/attachments UI
 - [x] **P11 Admin panel** — configuration, processes, Caddy panels
-- [ ] **P12 Backups/retention/maintenance** — backup service, archives, retention
+- [x] **P12 Backups/retention/maintenance** — backup service, archives, retention
       cleanups, background maintenance thread
 - [ ] **P13 Documentation** — all docs incl. bundle contract, LLM prompt template,
       manual smoke checklist, README

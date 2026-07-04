@@ -63,7 +63,7 @@ def open_conn(config: WALoaderConfig):
 
 @st.cache_resource(show_spinner=False)
 def boot_once(db_path: str) -> bool:
-    """One-time per UI process: migrations + startup reconciliation."""
+    """One-time per UI process: migrations, reconciliation, background worker."""
     config = current_config()
     conn = db.connect(config.database_path)
     try:
@@ -72,6 +72,10 @@ def boot_once(db_path: str) -> bool:
         reconciliation.reconcile(conn, config)
     finally:
         conn.close()
+    if config.health.background_enabled:
+        from waloader.services.background import start_background_worker
+
+        start_background_worker()
     return True
 
 

@@ -127,6 +127,7 @@ class HealthConfig(_Section):
     grace_period_seconds: int = 180
     consecutive_failures_threshold: int = 3
     initial_check_timeout_seconds: int = 30
+    background_enabled: bool = True  # health+maintenance thread inside the UI process
 
 
 class NotificationsConfig(_Section):

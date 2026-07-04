@@ -113,6 +113,9 @@ grace_period_seconds = 180
 consecutive_failures_threshold = 3
 # How long deployment waits for the first successful health check.
 initial_check_timeout_seconds = 30
+# Run the health-check + daily-maintenance thread inside the WALoader process.
+# When false, health checks and maintenance only run via CLI/admin panel.
+background_enabled = true
 
 [notifications]
 crash_emails_enabled = true

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from waloader.services import authorization, reconciliation
+from waloader.services import authorization, backups, maintenance_service, reconciliation
 from waloader.ui import common
 
 SESSION_RECONCILE = "admin_reconcile_report"
@@ -23,6 +23,9 @@ def render() -> None:
         else:
             st.info("No apps.")
 
+        _render_maintenance(config, conn)
+
+        st.subheader("Reconciliation")
         if st.button("Run reconciliation", type="primary"):
             report = reconciliation.reconcile(conn, config)
             st.session_state[SESSION_RECONCILE] = {
@@ -64,3 +67,22 @@ def render() -> None:
             for slug, result in results:
                 (st.success if result.ok else st.error)(f"{slug}: {result.message}")
             st.session_state.pop(SESSION_RECONCILE, None)
+
+
+def _render_maintenance(config, conn) -> None:
+    st.subheader("Maintenance")
+    st.caption(
+        "The background worker runs these daily while WALoader is up "
+        f"(health.background_enabled = {str(config.health.background_enabled).lower()}). "
+        "Run them on demand here or via `python -m waloader.tools.maintenance`."
+    )
+    columns = st.columns(2)
+    if columns[0].button("Back up database now"):
+        result = backups.backup_database(config)
+        (st.success if result.created else st.info)(
+            result.reason + (f": {result.path}" if result.path else "")
+        )
+    if columns[1].button("Run full maintenance now"):
+        with st.spinner("Running maintenance…"):
+            report = maintenance_service.run_all(conn, config)
+        st.success(report.summary())

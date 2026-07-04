@@ -248,6 +248,13 @@ Failed checks in a row before a running app is marked `failed`.
 How long deployment polls for the first healthy response before declaring
 `deployment_failed`. Raise on slow machines.
 
+### `health.background_enabled` — default `true`
+Runs the background worker (periodic health checks + once-daily maintenance:
+backup, retention cleanup, expired-app purge) inside the WALoader UI process.
+`false` → nothing runs automatically; use the maintenance CLI or admin panel.
+Note the documented limitation either way: automatic checks only happen while
+WALoader itself is running.
+
 All: **no secrets**, **commit-safe**.
 
 ## [notifications]

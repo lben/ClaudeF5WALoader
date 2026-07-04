@@ -21,7 +21,9 @@ APP_PATH = str(Path("src/waloader/ui/app.py").resolve())
 def ui_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     toml = tmp_path / "waloader.toml"
     toml.write_text(
-        f'[paths]\ndata_dir = "{tmp_path / "data"}"\n', encoding="utf-8"
+        f'[paths]\ndata_dir = "{tmp_path / "data"}"\n'
+        "[health]\nbackground_enabled = false\n",  # deterministic tests
+        encoding="utf-8",
     )
     monkeypatch.setenv("WALOADER_CONFIG", str(toml))
     return load_config().config

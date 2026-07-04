@@ -259,3 +259,21 @@
 - **Known issues:** none.
 - **Next:** P12 background maintenance thread + operator triggers (services
   already landed in P8).
+
+## 2026-07-03 — P12 Backups/retention/maintenance — complete
+
+- **Summary:** Background worker (daemon thread in the UI process, started
+  once via boot_once/cache_resource singleton): each tick health-checks all
+  running apps (failures logged, crash-email pipeline engaged) and runs the
+  full daily maintenance (change-detected DB backup, backup/log retention
+  cleanup, expired-app hard delete) once per UTC day; interval re-read from
+  effective config each loop; exceptions logged and survived. New documented
+  setting health.background_enabled (default true; false = CLI/admin-panel
+  only) — example TOML + configuration.md + doc-sync tests updated. Admin
+  Processes page gained a Maintenance section (backup-now, run-full-
+  maintenance-now with report). UI test fixtures disable the worker for
+  determinism. Services themselves landed in P8; this phase added the
+  scheduler + operator surface.
+- **Validation:** `uv run pytest` → 314 passed; `uv run ruff check .` → clean.
+- **Known issues:** none.
+- **Next:** P13 Documentation.
