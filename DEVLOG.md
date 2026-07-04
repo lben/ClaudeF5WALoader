@@ -181,3 +181,31 @@
   network); ruff clean. doctor --offline passes on this Mac.
 - **Known issues:** none.
 - **Next:** P9 WALoader UI core.
+
+## 2026-07-03 — P9 WALoader UI core — complete
+
+- **Summary:** Real Streamlit UI replacing the P8 placeholder. ui/common
+  (fresh effective config per rerun, per-action DB connections, cache_resource
+  boot_once = migrations + startup reconciliation, auth gate with first-run
+  bootstrap-admin screen then login form, shared deploy-outcome panel: success
+  with copyable URL code block + Open-app link, error with copyable
+  concatenated error block + fixed-bundle retry uploader). ui/app.py entry
+  (sidebar identity + logout, st.navigation with Dashboard/Create/Account).
+  Dashboard page: bordered app cards in a 3-column scrollable grid (state
+  badge, version/port/description, last-healthy, failure reason, Open button),
+  admin "show all apps" toggle, gear dialog per card with: update-code
+  uploader (same pipeline), Users Management Support toggle, and
+  stop/resume/restart/delete each behind an explicit confirm step. Create
+  page: live name availability with ✅/❌ and the smaller italic taken-message,
+  description, user-mgmt toggle, bundle uploader, guarded submit + spinner.
+  Account page: password change + logout. Tests use streamlit's official
+  headless AppTest (script-level, not browser automation): bootstrap flow,
+  login wrong/right, dashboard empty state + cards + ownership filtering +
+  boot-time reconciliation of dead-running apps, create-page availability
+  feedback (available/taken/reserved), account password change/mismatch.
+  Gotcha: AppTest.from_function needs self-contained sources (inner imports);
+  st.navigation pages tested via from_function wrappers.
+- **Validation:** `uv run pytest` → 294 passed; `uv run ruff check .` → clean.
+- **Known issues:** gear-dialog flows (dialog interactions) are covered by the
+  manual smoke checklist; services underneath are fully unit-tested.
+- **Next:** P10 Dataset & user-management UI.

@@ -1,8 +1,8 @@
 # PROGRESS.md — WALoader build status
 
 **Active goal:** `goals/G01-waloader-complete.md` (the only goal)
-**Current phase:** P9 — WALoader UI core (in progress)
-**Last validation:** 2026-07-03 P8: `uv run pytest` → 283 passed; integration+caddy markers → 4 passed; ruff clean
+**Current phase:** P10 — Dataset & user-management UI (in progress)
+**Last validation:** 2026-07-03 P9: `uv run pytest` → 294 passed; ruff clean
 
 ## Phase checklist
 
@@ -27,7 +27,7 @@
 - [x] **P7 User management module** — per-app toggle, app users CRUD, observations,
       attachments, login requirement, waloader_sdk.auth
 - [x] **P8 CLI tools** — db, appctl, caddyctl, maintenance, users, serve, doctor (P12 service layer — backups, archive, retention — pulled forward; P12 keeps the background thread)
-- [ ] **P9 WALoader UI core** — login/logout/password change, dashboard + cards,
+- [x] **P9 WALoader UI core** — login/logout/password change, dashboard + cards,
       create-app screen with availability check, success/error/retry flows, gear modal
 - [ ] **P10 Dataset & user-management UI** — concepts mapping screen, admin users UI,
       app-owner app users UI, observations/attachments UI
