@@ -117,8 +117,8 @@ def run_checks(*, offline: bool = False) -> list[Check]:
                                 "caddy.enabled=true but no caddy binary found"))
     else:
         found = config.resolved_caddy()
-        checks.append(Check("caddy binary", "SKIP",
-                            f"caddy disabled (binary {'found: ' + found if found else 'not found'})"))
+        note = f"found: {found}" if found else "not found"
+        checks.append(Check("caddy binary", "SKIP", f"caddy disabled (binary {note})"))
 
     if offline:
         checks.append(Check("uv preflight", "SKIP", "--offline"))

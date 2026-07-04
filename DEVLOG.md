@@ -161,3 +161,23 @@
 - **Known issues:** streamlit-facing SDK helpers are covered by the manual
   smoke checklist (P13/P14), pure cores are unit-tested.
 - **Next:** P8 CLI tools.
+
+## 2026-07-03 — P8 CLI tools — complete
+
+- **Summary:** Pulled P12's service layer forward (bottom-up rule): backups
+  service (sqlite backup API snapshot, sha256 change detection with sidecar,
+  age-based backup + log cleanup with empty-dir pruning), deletion service
+  (soft delete -> stop, zip archive of versions/datasets/user_files +
+  metadata.json [venvs excluded], purge_after stamp, app dir freed, caddy
+  route refresh, slug stays reserved; hard_delete_expired purges archive +
+  logs + row, freeing slug/port), maintenance_service.run_all. CLIs (all thin
+  service wrappers): db, appctl, caddyctl, maintenance, users, serve
+  (config-derived streamlit launch + startup reconcile + --print-command),
+  doctor (platform/config/binaries/data-dir/db/ports/caddy/preflight checks,
+  --offline, exit codes). Shared _common bootstrap = config + DB overrides +
+  migrations + logging. ui/app.py is a documented placeholder replaced in P9.
+- **Validation:** `uv run pytest` → 283 passed; `-m "integration or caddy"` →
+  4 passed (real uv preflight, real caddy validate x2, full doctor with
+  network); ruff clean. doctor --offline passes on this Mac.
+- **Known issues:** none.
+- **Next:** P9 WALoader UI core.
