@@ -144,3 +144,20 @@
 - **Validation:** `uv run pytest` → 240 passed; `uv run ruff check .` → clean.
 - **Known issues:** none.
 - **Next:** P7 User management module.
+
+## 2026-07-03 — P7 User management module — complete
+
+- **Summary:** app_users_service (per-app enable/disable toggle with audit;
+  create/update/deactivate/reactivate/delete app users with username+password
+  validation, per-app uniqueness, cross-app reuse allowed; authenticate with
+  inactive guard; self change-password + owner reset; observations field;
+  attachments stored under user_files/<id>/ with no-overwrite naming, metadata
+  rows, disk cleanup on delete); waloader_sdk.auth (standalone in child venvs:
+  pure core login_required/authenticate/change_password over the shared DB
+  with argon2 verify — hash-compatible with the platform service both ways —
+  plus streamlit-facing require_login [no-op when disabled, session_state
+  login form + st.stop gate], logout_button, change_password_form).
+- **Validation:** `uv run pytest` → 258 passed; `uv run ruff check .` → clean.
+- **Known issues:** streamlit-facing SDK helpers are covered by the manual
+  smoke checklist (P13/P14), pure cores are unit-tested.
+- **Next:** P8 CLI tools.
