@@ -1,8 +1,8 @@
 # PROGRESS.md — WALoader build status
 
 **Active goal:** `goals/G01-waloader-complete.md` (the only goal)
-**Current phase:** P6 — Dataset Concepts (in progress)
-**Last validation:** 2026-07-03 P5: `uv run pytest` → 212 passed; ruff clean
+**Current phase:** P7 — User management module (in progress)
+**Last validation:** 2026-07-03 P6: `uv run pytest` → 240 passed; ruff clean
 
 ## Phase checklist
 
@@ -21,7 +21,7 @@
       Caddy wrapper, deployment pipeline, create/retry/update orchestration
 - [x] **P5 Health & notifications** — health checks, state machine, startup
       reconciliation, notification service + send_mail logging stub, crash detection
-- [ ] **P6 Dataset Concepts** — concepts CRUD, upload storage (csv/xlsx/xls/parquet,
+- [x] **P6 Dataset Concepts** — concepts CRUD, upload storage (csv/xlsx/xls/parquet,
       Excel sheet names), canonical Parquet, schema inference + diff, replacement
       workflow, waloader_sdk.datasets
 - [ ] **P7 User management module** — per-app toggle, app users CRUD, observations,

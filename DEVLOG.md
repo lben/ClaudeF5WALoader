@@ -124,21 +124,23 @@
 - **Known issues:** none.
 - **Next:** P6 Dataset Concepts.
 
-## 2026-07-03 — P5 Health & notifications — complete
 
-- **Summary:** Health check service (process->port->HTTP /_stcore/health
-  probes; dead process fails immediately, transient unhealthiness needs the
-  configured consecutive threshold; running->failed transition triggers crash
-  notification rules); notifications module: send_mail STUB in
-  notifications/mailer.py logging subject/recipients only (docstring says
-  "replace this body at work" — exact corporate signature), crash service
-  enforcing deployed_healthy + grace period + enabled flag + per-failure-event
-  dedupe (cleared on successful deploy), Outlook-compatible escaped HTML,
-  owner + admin_cc recipients; lifecycle service (start/resume with port
-  revalidation + health poll + caddy refresh on port change, stop [never
-  emails: goes to stopped], restart); startup reconciliation (dead running ->
-  stopped + resume candidate + port-conflict warnings, alive stopped ->
-  adopted, resume_apps admin action, apps_overview snapshot).
-- **Validation:** `uv run pytest` → 212 passed; `uv run ruff check .` → clean.
+## 2026-07-03 — P6 Dataset Concepts — complete
+
+- **Summary:** datasets_service (concept CRUD with name validation + disk
+  cleanup on delete; upload storage for csv/xlsx/xls/parquet with extension +
+  size limits; Excel sheet REQUIRED for .xlsx/.xls with available-sheets error,
+  ignored/never stored for csv/parquet; originals preserved timestamped +
+  canonical current.parquet written per G01 §3.5; schema inference at upload;
+  reusable diff_schemas with added/removed/changed + copyable format();
+  replacement_diff comparing stored schema [its stored sheet] vs incoming
+  [declared sheet]); waloader_sdk.datasets (env-context via WALOADER_*,
+  load_dataset -> DataFrame | None | required raise, UnknownConceptError,
+  helpful out-of-WALoader error, no_data_placeholder italic empty state);
+  waloader_sdk._context shared SDK env resolution. Added dev-only xlwt for
+  .xls test fixtures (xlrd reads them in prod code). Note: dtype names differ
+  across pandas versions ("object" vs "str") — tests derive expectations from
+  pandas itself.
+- **Validation:** `uv run pytest` → 240 passed; `uv run ruff check .` → clean.
 - **Known issues:** none.
-- **Next:** P6 Dataset Concepts.
+- **Next:** P7 User management module.
