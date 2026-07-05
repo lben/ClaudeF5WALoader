@@ -48,8 +48,10 @@ def _cleanup(conn: sqlite3.Connection, fast_config: WALoaderConfig):
         processes.stop_app(conn, fast_config, app)
 
 
-def _deployed_app(conn: sqlite3.Connection, user: User, name: str, slug: str,
+def _deployed_app(conn: sqlite3.Connection, config, user: User, name: str, slug: str,
                   state: str = "stopped") -> App:
+    from waloader.services import layout, uv_env
+
     app = apps_repo.create(conn, owner_id=user.id, name=name, slug=slug)
     versions_repo.create(
         conn, app_id=app.id, version_number=1, manifest={"entrypoint": "app.py"},
@@ -60,12 +62,16 @@ def _deployed_app(conn: sqlite3.Connection, user: User, name: str, slug: str,
     apps_repo.set_current_version(conn, app.id, 1)
     apps_repo.set_state(conn, app.id, state)
     conn.commit()
+    # a venv must exist for lifecycle.start (G02: missing venv => rebuild required)
+    venv_python = uv_env.venv_python(layout.venv_dir(config, slug, 1))
+    venv_python.parent.mkdir(parents=True, exist_ok=True)
+    venv_python.write_text("")
     return apps_repo.get(conn, app.id)
 
 
 class TestLifecycle:
     def test_start_stopped_app(self, conn, fast_config, user: User) -> None:
-        app = _deployed_app(conn, user, "A", "a")
+        app = _deployed_app(conn, fast_config, user, "A", "a")
         result = lifecycle.start(
             conn, fast_config, app, actor="alice",
             _launcher=_sleeper_launcher, _prober=_healthy,
@@ -76,7 +82,7 @@ class TestLifecycle:
         assert processes.is_app_running(conn, app)
 
     def test_start_already_running_is_noop(self, conn, fast_config, user: User) -> None:
-        app = _deployed_app(conn, user, "A", "a")
+        app = _deployed_app(conn, fast_config, user, "A", "a")
         lifecycle.start(conn, fast_config, app, _launcher=_sleeper_launcher,
                         _prober=_healthy)
         app = apps_repo.get(conn, app.id)
@@ -91,7 +97,7 @@ class TestLifecycle:
         assert not result.ok and "no deployed version" in result.message
 
     def test_start_failure_cleans_up(self, conn, fast_config, user: User) -> None:
-        app = _deployed_app(conn, user, "A", "a")
+        app = _deployed_app(conn, fast_config, user, "A", "a")
 
         def never_healthy(config, a, process_alive):
             return health.ProbeResult(False, "port closed")
@@ -103,7 +109,7 @@ class TestLifecycle:
         assert apps_repo.get(conn, app.id).state == "stopped"  # unchanged
 
     def test_stop_running_app(self, conn, fast_config, user: User) -> None:
-        app = _deployed_app(conn, user, "A", "a")
+        app = _deployed_app(conn, fast_config, user, "A", "a")
         lifecycle.start(conn, fast_config, app, _launcher=_sleeper_launcher,
                         _prober=_healthy)
         app = apps_repo.get(conn, app.id)
@@ -123,7 +129,7 @@ class TestLifecycle:
             mailer, "send_mail",
             lambda **kwargs: sent.append(kwargs),
         )
-        app = _deployed_app(conn, user, "Quiet", "quiet")
+        app = _deployed_app(conn, fast_config, user, "Quiet", "quiet")
         lifecycle.start(conn, fast_config, app, _launcher=_sleeper_launcher,
                         _prober=_healthy)
         app = apps_repo.get(conn, app.id)
@@ -134,7 +140,7 @@ class TestLifecycle:
         assert sent == []
 
     def test_restart_changes_pid(self, conn, fast_config, user: User) -> None:
-        app = _deployed_app(conn, user, "A", "a")
+        app = _deployed_app(conn, fast_config, user, "A", "a")
         lifecycle.start(conn, fast_config, app, _launcher=_sleeper_launcher,
                         _prober=_healthy)
         first_pid = runtime_repo.get(conn, app.id).pid
@@ -149,7 +155,7 @@ class TestReconciliation:
     def test_dead_running_app_becomes_stopped_resume_candidate(
         self, conn, fast_config, user: User
     ) -> None:
-        app = _deployed_app(conn, user, "Dead", "dead", state="running")
+        app = _deployed_app(conn, fast_config, user, "Dead", "dead", state="running")
         runtime_repo.upsert_started(conn, app.id, pid=2_111_111, pid_create_time=1.0)
         conn.commit()
         report = reconciliation.reconcile(conn, fast_config)
@@ -159,7 +165,7 @@ class TestReconciliation:
         assert apps_repo.get(conn, app.id).state == "stopped"
 
     def test_alive_running_app_untouched(self, conn, fast_config, user: User) -> None:
-        app = _deployed_app(conn, user, "Live", "live")
+        app = _deployed_app(conn, fast_config, user, "Live", "live")
         lifecycle.start(conn, fast_config, app, _launcher=_sleeper_launcher,
                         _prober=_healthy)
         report = reconciliation.reconcile(conn, fast_config)
@@ -169,14 +175,14 @@ class TestReconciliation:
     def test_stopped_app_with_alive_process_adopted(
         self, conn, fast_config, user: User
     ) -> None:
-        app = _deployed_app(conn, user, "Zombie", "zombie")
+        app = _deployed_app(conn, fast_config, user, "Zombie", "zombie")
         _sleeper_launcher(conn, fast_config, app, None)  # process alive, state stopped
         report = reconciliation.reconcile(conn, fast_config)
         assert report.actions[0].action == "adopted running process"
         assert apps_repo.get(conn, app.id).state == "running"
 
     def test_resume_apps(self, conn, fast_config, user: User) -> None:
-        app = _deployed_app(conn, user, "Res", "res", state="running")
+        app = _deployed_app(conn, fast_config, user, "Res", "res", state="running")
         runtime_repo.upsert_started(conn, app.id, pid=2_111_111, pid_create_time=1.0)
         conn.commit()
         report = reconciliation.reconcile(conn, fast_config)
@@ -193,7 +199,7 @@ class TestReconciliation:
         assert not results[0][1].ok
 
     def test_overview(self, conn, fast_config, user: User) -> None:
-        _deployed_app(conn, user, "One", "one")
+        _deployed_app(conn, fast_config, user, "One", "one")
         rows = reconciliation.apps_overview(conn)
         assert rows[0]["slug"] == "one" and rows[0]["state"] == "stopped"
         assert rows[0]["process"] == "-"

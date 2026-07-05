@@ -417,3 +417,44 @@ def redeploy(
     return deploy_bundle(
         conn, config, app, bundle_bytes, actor_id=actor_id, kind=kind, **test_seams
     )
+
+
+def rebuild_app(
+    conn: sqlite3.Connection,
+    config: WALoaderConfig,
+    app: App,
+    *,
+    actor_id: int | None = None,
+    **test_seams,
+) -> DeployResult:
+    """Rebuild after restore/import: replay the pipeline on the preserved
+    bundle of the current version (venvs are never archived — G02 §3.5)."""
+    from waloader.repositories import versions as versions_repo
+
+    if app.current_version is None:
+        result = DeployResult(ok=False, app_id=app.id, kind="rebuild")
+        result.error_summary = f"'{app.slug}' has no deployed version to rebuild"
+        return result
+    version = versions_repo.get_by_number(conn, app.id, app.current_version)
+    bundle_path = layout.resolve(config, version.bundle_path) if version else None
+    if version is None or bundle_path is None or not bundle_path.exists():
+        result = DeployResult(ok=False, app_id=app.id, kind="rebuild")
+        result.error_summary = (
+            f"Preserved bundle for '{app.slug}' v{app.current_version} is missing"
+        )
+        return result
+    return deploy_bundle(
+        conn, config, app, bundle_path.read_bytes(),
+        actor_id=actor_id, kind="rebuild", **test_seams,
+    )
+
+
+def needs_rebuild(config: WALoaderConfig, app: App) -> bool:
+    """True when the app has a current version but its venv is gone
+    (post-restore/import) — start would fail; rebuild is required."""
+    if app.current_version is None:
+        return False
+    venv_python = uv_env.venv_python(
+        layout.venv_dir(config, app.slug, app.current_version)
+    )
+    return not venv_python.exists()

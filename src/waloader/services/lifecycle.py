@@ -46,6 +46,19 @@ def start(
         return LifecycleResult(
             False, f"Version {app.current_version} of '{app.slug}' is missing"
         )
+    from waloader.services import layout, uv_env  # local import: avoids a cycle
+
+    venv_python = uv_env.venv_python(
+        layout.venv_dir(config, app.slug, app.current_version)
+    )
+    if not venv_python.exists():
+        return LifecycleResult(
+            False,
+            f"'{app.slug}' has no virtualenv for v{app.current_version} "
+            "(restored or imported?) — rebuild required: "
+            f"`python -m waloader.tools.appctl rebuild {app.slug}` "
+            "or the Rebuild button in the app's gear dialog",
+        )
     try:
         old_port = app.port
         ports.allocate_port(conn, config, app.id)  # revalidates the stored port
