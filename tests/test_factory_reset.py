@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from waloader import db as wdb
-from waloader.config import WALoaderConfig, load_config
+from waloader.config import load_config
 from waloader.repositories import apps as apps_repo
 from waloader.repositories import runtime as runtime_repo
 from waloader.repositories import users as users_repo

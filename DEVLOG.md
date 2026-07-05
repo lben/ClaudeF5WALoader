@@ -414,3 +414,23 @@
 - **Validation:** `uv run pytest` → 362 passed; ruff clean.
 - **Known issues:** none.
 - **Next:** Q4 UI (Backups & reset admin page, gear export/rebuild).
+
+## 2026-07-05 — G02 Q3 Factory reset + backupctl — complete
+
+- **Summary:** services/factory_reset.py: stop every child (all states) →
+  audit row BEFORE the snapshot (the event travels inside the backup, proven
+  by test) → full all-scope backup WITH logs into backups/factory/ (purge
+  date = now + retention.factory_reset_backup_days) → caddy stop → wipe
+  everything except backups/ → report with undo instructions
+  (backupctl restore + appctl rebuild --all) and "restart serve → first-run"
+  note; --skip-backup honored; missing-DB degrades to wipe-only with a note.
+  tools/backupctl.py: create (--scope all|db|apps|app, --code-only,
+  --with-logs), list (kind/scope/size/purge table), restore (--force),
+  factory-reset (typed-RESET prompt, EOF-safe non-tty message, --force for
+  scripts) — deliberately does NOT use the shared bootstrap so restore into
+  an empty data dir never auto-creates a DB first (tested). Maintenance
+  integration: run_all + cleanup-retention now prune expired factory backups
+  (manual backups never pruned), report/summary extended.
+- **Validation:** `uv run pytest` → 362 passed; ruff clean.
+- **Known issues:** none.
+- **Next:** Q4 UI (Backups & reset admin page, gear export/rebuild).
