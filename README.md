@@ -60,6 +60,7 @@ it prints. Production runbook: `docs/troubleshooting.md`.
 | `docs/dependency-policy.md` | what child apps may depend on; uv/private index |
 | `docs/process-management.md` | lifecycle, health checks, reconciliation |
 | `docs/caddy-reverse-proxy.md` | clean URLs on one port |
+| `docs/backups-and-restore.md` | scoped backups, restore, app export/import, factory reset, machine migration |
 | `docs/troubleshooting.md` | runbook incl. RHEL deployment |
 | `docs/manual-smoke-checklist.md` | human verification pass |
 
@@ -67,8 +68,9 @@ it prints. Production runbook: `docs/troubleshooting.md`.
 
 `python -m waloader.tools.<tool>`: `serve` (run the UI), `doctor`
 (environment self-check), `db` (migrate/status/backup), `appctl`
-(list/status/start/stop/restart/logs/health/reconcile), `caddyctl`
-(generate/validate/start/stop/reload/status), `maintenance`
+(list/status/start/stop/restart/logs/health/reconcile/rebuild/export/import),
+`caddyctl` (generate/validate/start/stop/reload/status), `backupctl`
+(create scoped backups/list/restore/factory-reset), `maintenance`
 (backup-db/cleanup-retention/cleanup-logs/…/run-all), `users`
 (create-admin/list/reset-password). All are thin wrappers over the same
 services the UI uses.

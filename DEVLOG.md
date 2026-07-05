@@ -455,3 +455,22 @@
 - **Known issues:** import-via-UI upload widget not drivable by AppTest
   (service + CLI covered); manual checklist gets it.
 - **Next:** Q5 docs & final verification.
+
+## 2026-07-05 — G02 Q5 Docs & final verification — complete — GOAL DONE
+
+- **Summary:** docs/backups-and-restore.md written: where archives live and
+  why backups/ survives wipes, all four scopes with a restorable-how table,
+  restore + rebuild semantics, export/import incl. un-delete and the
+  argon2-portability note, factory reset (order of operations, undo recipe,
+  CLI/UI confirmation contract), the machine-migration runbook, and the
+  retention summary table. Cross-updates: README (backupctl + new appctl
+  subcommands, docs index), troubleshooting ("rebuild required" symptom +
+  disaster-recovery pointer), manual smoke checklist (backups/download,
+  export→import round trip, factory reset against a scratch data dir).
+- **Final validation (this Mac):** unit 367 · `-m integration` 2 · `-m e2e` 4
+  (G01 deployment round trip + G02 backup→wipe→restore→rebuild→serving,
+  export→delete→import→serving, soft-delete un-delete) · `-m caddy` 3 ·
+  `uv run ruff check .` clean · doctor all checks passed.
+- **Known issues:** none. PROGRESS.md carries the DoD closure and accepted
+  limitations. Tagged v0.2.0.
+- **Next:** none — G02 complete.

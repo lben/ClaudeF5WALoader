@@ -62,6 +62,19 @@ Setup: `uv run python -m waloader.tools.doctor` → all green →
       `http://host:8080/waloader` and `/apps/<slug>` both work; `redir /` lands
       on /waloader/.
 
+## Backups & reset (Admin → Backups & reset)
+- [ ] Create a "Database only" backup → appears in the list → Download works.
+- [ ] Create an "Everything" backup; `backupctl list` shows it too.
+- [ ] Gear dialog → Export app → download produces a zip; import it back under
+      a new name (Import section) → the copy deploys and serves. ⑂
+- [ ] Delete a backup: requires confirmation.
+- [ ] **Factory reset — use a scratch data dir, never your real one** (point
+      `WALOADER_CONFIG` at a throwaway TOML first): button disabled until you
+      type `RESET`; after reset the report shows the factory backup path;
+      restarting serve lands on first-run setup; `backupctl restore` +
+      `appctl rebuild --all` brings everything back.
+
 ## CLIs (spot check)
 - [ ] `appctl list/status/logs` sensible; `doctor` all green;
-      `maintenance run-all` prints a summary.
+      `maintenance run-all` prints a summary (incl. factory-backup pruning);
+      `backupctl list` matches the UI.

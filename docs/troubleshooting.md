@@ -76,6 +76,15 @@ initial health.
 lock errors usually mean the data dir is on a network share — keep
 `paths.data_dir` on local disk.
 
+**"⚠ rebuild required" / start says "rebuild required".** The app's venv is
+missing — normal right after a restore or an import (venvs are never
+archived). `appctl rebuild <slug>` (or `--all`), or the gear dialog's
+Rebuild button. See `docs/backups-and-restore.md`.
+
+**Disaster recovery / moving machines / factory reset.** All covered in
+`docs/backups-and-restore.md` — including undoing a factory reset from the
+automatic safety backup under `data/backups/factory/`.
+
 ## Where things live
 
 ```text
