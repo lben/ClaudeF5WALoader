@@ -126,6 +126,15 @@ def _render_login(conn: sqlite3.Connection) -> None:
 def require_user(config: WALoaderConfig) -> User:
     """Gate: bootstrap screen when no users exist, else login. Stops if unauthenticated."""
     with open_conn(config) as conn:
+        try:
+            conn.execute("SELECT 1 FROM users LIMIT 1")
+        except sqlite3.OperationalError:
+            # e.g. right after a factory reset in this very process
+            st.warning(
+                "The database is not initialized (factory reset just ran?). "
+                "Restart WALoader: `uv run python -m waloader.tools.serve`."
+            )
+            st.stop()
         if users_service.bootstrap_needed(conn):
             _render_bootstrap(conn)
             st.stop()

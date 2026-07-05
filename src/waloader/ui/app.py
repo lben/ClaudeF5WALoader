@@ -8,6 +8,7 @@ from waloader.services import authorization
 from waloader.ui import (
     common,
     page_account,
+    page_admin_backups,
     page_admin_caddy,
     page_admin_processes,
     page_admin_settings,
@@ -54,6 +55,8 @@ if authorization.is_admin(_user):
                 url_path="admin-processes"),
         st.Page(page_admin_caddy.render, title="Caddy", icon="🔀",
                 url_path="admin-caddy"),
+        st.Page(page_admin_backups.render, title="Backups & reset", icon="🗄",
+                url_path="admin-backups"),
         st.Page(page_admin_users.render, title="WALoader users", icon="🛡",
                 url_path="admin-users"),
     ]

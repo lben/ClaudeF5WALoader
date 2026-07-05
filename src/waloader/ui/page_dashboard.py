@@ -7,6 +7,7 @@ import streamlit as st
 from waloader.repositories import apps as apps_repo
 from waloader.repositories import runtime as runtime_repo
 from waloader.services import (
+    app_migration,
     app_users_service,
     authorization,
     deletion,
@@ -67,6 +68,43 @@ def _gear_dialog(app_id: int) -> None:
 
         st.caption("*Dataset Concepts: use the **Datasets** page in the sidebar. "
                    "App users: the **App users** page.*")
+
+        # --- rebuild (after restore/import: venvs are never archived) ------
+        if deployment.needs_rebuild(config, app):
+            st.warning(
+                "This app's virtualenv is missing (restored or imported?) — "
+                "rebuild it from the preserved bundle before starting."
+            )
+            if st.button("Rebuild now", type="primary", key=f"rebuild_{app.id}"):
+                with st.spinner(f"Rebuilding {app.name}…"):
+                    result = deployment.rebuild_app(conn, config, app,
+                                                    actor_id=user.id)
+                app = apps_repo.get(conn, app.id)
+                common.store_deploy_outcome(app, result, health.app_url(config, app))
+                st.rerun()
+
+        # --- export ----------------------------------------------------------
+        with st.expander("Export app"):
+            code_only = st.toggle("Code only (exclude datasets and user files)",
+                                  key=f"exp_codeonly_{app.id}")
+            if st.button("Create export archive", key=f"exp_go_{app.id}"):
+                path = app_migration.export_app(
+                    conn, config, app, include_data=not code_only,
+                    actor=user.username,
+                )
+                st.session_state[f"exp_path_{app.id}"] = str(path)
+                st.rerun()
+            exported = st.session_state.get(f"exp_path_{app.id}")
+            if exported:
+                from pathlib import Path
+
+                export_path = Path(exported)
+                if export_path.exists():
+                    st.caption(f"`{export_path.name}` (also kept in backups/manual/)")
+                    st.download_button(
+                        "Download export", export_path.read_bytes(),
+                        file_name=export_path.name, key=f"exp_dl_{app.id}",
+                    )
 
         # --- lifecycle actions with confirmation ---------------------------
         st.divider()
@@ -134,6 +172,8 @@ def _render_card(config, conn, app) -> None:
         rt = runtime_repo.get(conn, app.id)
         if rt and rt.last_healthy_at:
             st.caption(f"last healthy: {rt.last_healthy_at}")
+        if deployment.needs_rebuild(config, app):
+            st.caption("⚠ rebuild required (gear → Rebuild now)")
         if app.state in ("failed", "deployment_failed") and rt and rt.last_failure_reason:
             st.caption(f"⚠ {rt.last_failure_reason}")
         if app.port and app.state == "running":

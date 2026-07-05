@@ -1,7 +1,7 @@
 # PROGRESS.md — WALoader build status
 
 **Active goal:** `goals/G02-backups-reset-migration.md` (G01 complete, tagged v0.1.0)
-**Current phase:** Q4 — UI (in progress)
+**Current phase:** Q5 — Docs & final verification (in progress)
 **Last validation:** G01 final (2026-07-03): unit 315 · integration 2 · e2e 1 · caddy 3 · ruff clean · doctor pass
 
 ## G02 phase checklist
@@ -23,7 +23,7 @@
       backupctl CLI (create/list/restore/factory-reset, typed-RESET confirmation,
       --force, --skip-backup), retention.factory_reset_backup_days setting +
       maintenance pruning, config docs updated
-- [ ] **Q4 UI** — Admin "Backups & reset" page (create/download/list/delete,
+- [x] **Q4 UI** — Admin "Backups & reset" page (create/download/list/delete,
       import app, danger-zone reset with typed RESET), gear dialog export +
       rebuild-when-venv-missing, AppTest coverage
 - [ ] **Q5 Docs & final verification** — docs/backups-and-restore.md (incl.

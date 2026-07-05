@@ -434,3 +434,24 @@
 - **Validation:** `uv run pytest` → 362 passed; ruff clean.
 - **Known issues:** none.
 - **Next:** Q4 UI (Backups & reset admin page, gear export/rebuild).
+
+## 2026-07-05 — G02 Q4 UI — complete
+
+- **Summary:** Admin "Backups & reset" page: create-backup form (scope radio,
+  app selector, code-only + with-logs toggles) with download of the produced
+  zip; existing-backups list (kind/scope/size/created/purge) with download +
+  confirmed delete; import-app section (zip upload staged to tmp, owner
+  selector, optional rename, deploy toggle, standard deploy-outcome panel);
+  danger zone factory reset gated by typed RESET with BOTH a disabled button
+  and a server-side re-check (AppTest can click "disabled" buttons — the gate
+  is real), report + "restart serve" notes rendered BEFORE any DB access on
+  subsequent reruns (a rerun after reset must not recreate an empty DB file —
+  caught by test, fixed by reordering render()). Gear dialog: rebuild warning
+  + "Rebuild now" when the venv is missing, and an Export expander
+  (code-only toggle, archive also kept in backups/manual/, download button);
+  dashboard cards show "⚠ rebuild required". common.require_user now degrades
+  gracefully when the schema is missing (post-reset in-process rerun).
+- **Validation:** `uv run pytest` → 367 passed; ruff clean.
+- **Known issues:** import-via-UI upload widget not drivable by AppTest
+  (service + CLI covered); manual checklist gets it.
+- **Next:** Q5 docs & final verification.
