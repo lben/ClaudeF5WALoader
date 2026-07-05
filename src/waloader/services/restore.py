@@ -97,7 +97,7 @@ def restore_all(
     config: WALoaderConfig, archive_path: Path, *, force: bool = False
 ) -> RestoreReport:
     """Restore a full instance. Precondition: WALoader (serve) is not running."""
-    manifest = _read_backup_manifest(archive_path)
+    _read_backup_manifest(archive_path)  # validates format + scope
 
     wipe_report: WipeReport | None = None
     if config.database_path.exists():

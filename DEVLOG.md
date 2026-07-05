@@ -351,3 +351,26 @@
 - **Validation:** `uv run pytest` → 329 passed; `uv run ruff check .` → clean.
 - **Known issues:** none.
 - **Next:** Q1 restore & rebuild.
+
+## 2026-07-05 — G02 Q1 Restore & rebuild — complete
+
+- **Summary:** services/restore.py: wipe_data_dir (shared by restore --force
+  and factory reset; removes everything under data_dir except backups/,
+  reports leftovers instead of silently ignoring); restore_all (all-scope
+  manifest validation with clear errors incl. per-app-archive redirect,
+  refuses over an existing DB without force, zip-slip guard, migrates the
+  restored DB [archives may predate newer migrations], normalizes
+  running/deploying -> stopped + clears pids, reports rebuild-required
+  slugs). deployment.rebuild_app: replays the pipeline on the preserved
+  byte-exact bundle (kind="rebuild"; appends a new version, honestly);
+  needs_rebuild helper. lifecycle.start now refuses with "rebuild required:
+  appctl rebuild <slug>" when the current venv is missing (existing lifecycle
+  tests updated to create venv markers — the check is real behavior).
+  appctl rebuild <slug>|--all. NOTE: services/app_migration.py +
+  appctl export/import handlers landed here too (service-before-client for
+  the shared parser); their unit tests are Q2's boundary. e2e: real
+  backup→wipe→restore→refused-start→rebuild→HTTP-healthy round trip passed,
+  plus import round trips already green.
+- **Validation:** `uv run pytest` → 341 passed; `-m e2e` → 4 passed; ruff clean.
+- **Known issues:** none.
+- **Next:** Q2 export/import unit tests.

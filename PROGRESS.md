@@ -1,7 +1,7 @@
 # PROGRESS.md — WALoader build status
 
 **Active goal:** `goals/G02-backups-reset-migration.md` (G01 complete, tagged v0.1.0)
-**Current phase:** Q1 — Restore & rebuild (in progress)
+**Current phase:** Q2 — Export/import (in progress)
 **Last validation:** G01 final (2026-07-03): unit 315 · integration 2 · e2e 1 · caddy 3 · ruff clean · doctor pass
 
 ## G02 phase checklist
@@ -11,7 +11,7 @@
       attachments), deletion switched to the shared builder,
       services/scoped_backups.py (scopes all/db/apps/app, code-only/with-data,
       with-logs, list, delete), zip-content + manifest tests
-- [ ] **Q1 Restore & rebuild** — services/restore.py (all-scope archives, --force
+- [x] **Q1 Restore & rebuild** — services/restore.py (all-scope archives, --force
       wipe-except-backups, states normalized to stopped), rebuild_app via the
       deployment pipeline (kind="rebuild"), lifecycle.start venv-missing message,
       appctl rebuild <slug>|--all, e2e backup→wipe→restore→rebuild→healthy
