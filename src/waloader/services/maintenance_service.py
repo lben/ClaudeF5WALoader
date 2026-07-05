@@ -6,7 +6,7 @@ import sqlite3
 from dataclasses import dataclass, field
 
 from waloader.config import WALoaderConfig
-from waloader.services import backups, deletion
+from waloader.services import backups, deletion, scoped_backups
 
 
 @dataclass
@@ -14,6 +14,7 @@ class MaintenanceReport:
     backup_created: bool = False
     backup_reason: str = ""
     backups_removed: int = 0
+    factory_backups_removed: int = 0
     logs_removed: int = 0
     apps_purged: list[str] = field(default_factory=list)
 
@@ -21,6 +22,7 @@ class MaintenanceReport:
         return (
             f"backup: {'created' if self.backup_created else self.backup_reason}; "
             f"expired backups removed: {self.backups_removed}; "
+            f"expired factory backups removed: {self.factory_backups_removed}; "
             f"old log files removed: {self.logs_removed}; "
             f"apps hard-deleted: {len(self.apps_purged)}"
         )
@@ -32,6 +34,9 @@ def run_all(conn: sqlite3.Connection, config: WALoaderConfig) -> MaintenanceRepo
     report.backup_created = backup.created
     report.backup_reason = backup.reason
     report.backups_removed = len(backups.cleanup_backups(config))
+    report.factory_backups_removed = len(
+        scoped_backups.cleanup_factory_backups(config)
+    )
     report.logs_removed = backups.cleanup_logs(config)
     report.apps_purged = deletion.hard_delete_expired(conn, config)
     return report

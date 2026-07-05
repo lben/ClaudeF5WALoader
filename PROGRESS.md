@@ -1,7 +1,7 @@
 # PROGRESS.md — WALoader build status
 
 **Active goal:** `goals/G02-backups-reset-migration.md` (G01 complete, tagged v0.1.0)
-**Current phase:** Q3 — Factory reset + backupctl (in progress)
+**Current phase:** Q4 — UI (in progress)
 **Last validation:** G01 final (2026-07-03): unit 315 · integration 2 · e2e 1 · caddy 3 · ruff clean · doctor pass
 
 ## G02 phase checklist
@@ -18,7 +18,7 @@
 - [x] **Q2 Export/import** — export_app/import_app services (owner/name mapping,
       slug availability, users/datasets fidelity, deploy-by-default),
       appctl export/import, soft-delete un-delete test, e2e import round-trip
-- [ ] **Q3 Factory reset + backupctl** — services/factory_reset.py (stop all →
+- [x] **Q3 Factory reset + backupctl** — services/factory_reset.py (stop all →
       full backup into backups/factory/ → wipe except backups/ → report),
       backupctl CLI (create/list/restore/factory-reset, typed-RESET confirmation,
       --force, --skip-backup), retention.factory_reset_backup_days setting +

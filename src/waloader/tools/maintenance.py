@@ -29,9 +29,14 @@ def main(argv: list[str] | None = None) -> int:
             result = backups.backup_database(config)
             print(result.reason + (f": {result.path}" if result.path else ""))
         elif args.command == "cleanup-retention":
+            from waloader.services import scoped_backups
+
             removed = backups.cleanup_backups(config)
+            factory_removed = scoped_backups.cleanup_factory_backups(config)
             purged = deletion.hard_delete_expired(conn, config)
-            print(f"expired backups removed: {len(removed)}; apps purged: {purged or 'none'}")
+            print(f"expired backups removed: {len(removed)}; "
+                  f"expired factory backups removed: {len(factory_removed)}; "
+                  f"apps purged: {purged or 'none'}")
         elif args.command == "cleanup-logs":
             print(f"old log files removed: {backups.cleanup_logs(config)}")
         elif args.command == "archive-deleted-apps":
