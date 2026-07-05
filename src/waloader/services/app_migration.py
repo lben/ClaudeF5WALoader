@@ -111,7 +111,22 @@ def import_app(
     actor: str = "",
     **test_seams,
 ) -> tuple[App, deployment.DeployResult | None]:
-    metadata = app_archive.read_metadata(archive_path)  # validates archive_format
+    try:
+        metadata = app_archive.read_metadata(archive_path)  # validates archive_format
+    except app_archive.ArchiveError:
+        # scope backups carry manifest.json instead of metadata.json — redirect
+        try:
+            with zipfile.ZipFile(archive_path) as probe:
+                manifest = json.loads(probe.read("manifest.json"))
+            if manifest.get("kind") == "backup":
+                raise ImportAppError(
+                    f"'{archive_path.name}' is a {manifest.get('scope')}-scope "
+                    "backup, not an app archive — full backups are restored "
+                    "with 'backupctl restore', not imported."
+                ) from None
+        except (zipfile.BadZipFile, KeyError, OSError, json.JSONDecodeError):
+            pass
+        raise
     if metadata.get("kind") != "app":
         raise ImportAppError(
             "This is a scope backup, not an app archive — full backups are "

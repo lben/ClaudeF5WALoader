@@ -374,3 +374,23 @@
 - **Validation:** `uv run pytest` → 341 passed; `-m e2e` → 4 passed; ruff clean.
 - **Known issues:** none.
 - **Next:** Q2 export/import unit tests.
+
+## 2026-07-05 — G02 Q2 Export/import — complete
+
+- **Summary:** Unit coverage for the migration service that landed in Q1:
+  export to backups/manual (code-only flag verified); import fidelity without
+  deploy (rewritten version/dataset/attachment paths resolve under the new
+  slug, bundles byte-exact, parquet loadable, argon2 hashes authenticate,
+  inactive users preserved, observations kept, state=created +
+  needs_rebuild); import with deploy seams -> running via kind="rebuild";
+  code-only archives create concepts without file rows and skip attachments;
+  validation: name collision hints --name (soft-delete reservation), owner
+  resolution (archived-owner-exists / missing -> "pass --owner" / unknown
+  explicit owner), scope backups redirected to 'backupctl restore' (fixed:
+  the probe now reads manifest.json when metadata.json is absent so users get
+  the redirect instead of a generic error), zip-slip guard. appctl
+  export/import CLI happy path + failure exit codes. e2e import round trips
+  were already green in Q1.
+- **Validation:** `uv run pytest` → 352 passed; ruff clean.
+- **Known issues:** none.
+- **Next:** Q3 factory reset + backupctl CLI.
