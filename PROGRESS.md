@@ -1,72 +1,42 @@
 # PROGRESS.md — WALoader build status
 
-**Active goal:** `goals/G01-waloader-complete.md` — **COMPLETE** (v0.1.0)
-**Current phase:** all phases done (P0–P14)
-**Last validation:** 2026-07-03 P14 final: unit 315 passed · integration 2 passed ·
-e2e 1 passed (real deployment) · caddy 3 passed (real proxied round-trip) ·
-ruff clean · doctor all checks passed (full, with network) · real-browser
-verification of the served UI (bootstrap → login → dashboard card → deployed
-child app reading its dataset via the SDK)
+**Active goal:** `goals/G02-backups-reset-migration.md` (G01 complete, tagged v0.1.0)
+**Current phase:** Q1 — Restore & rebuild (in progress)
+**Last validation:** G01 final (2026-07-03): unit 315 · integration 2 · e2e 1 · caddy 3 · ruff clean · doctor pass
 
-## Phase checklist
+## G02 phase checklist
 
-- [x] **P0 Bootstrap** — git repo, .gitignore, uv project (pyproject, src layout, lock),
-      pytest/ruff harness, PROGRESS.md, DEVLOG.md, first trivial test green
-- [x] **P1 Foundation** — config system + derived paths, logging + Rich, path utils +
-      `private/` guard, SQLite layer (WAL), migrations framework + 001_initial,
-      domain models, repositories
-- [x] **P2 Security & users** — argon2 hashing, WALoader users, login/session service,
-      admin bootstrap (first-run screen + create-admin CLI in P8), authorization checks,
-      config docs framework with doc-sync tests
-- [x] **P3 App core services** — slug service, bundle parser + safety validator,
-      filesystem layout, versioning service, dependency policy validator,
-      uv command/env builder + redaction, uv preflight
-- [x] **P4 Runtime services** — port allocation, process manager, Caddyfile generation,
-      Caddy wrapper, deployment pipeline, create/retry/update orchestration
-- [x] **P5 Health & notifications** — health checks, state machine, startup
-      reconciliation, notification service + send_mail logging stub, crash detection
-- [x] **P6 Dataset Concepts** — concepts CRUD, upload storage (csv/xlsx/xls/parquet,
-      Excel sheet names), canonical Parquet, schema inference + diff, replacement
-      workflow, waloader_sdk.datasets
-- [x] **P7 User management module** — per-app toggle, app users CRUD, observations,
-      attachments, login requirement, waloader_sdk.auth
-- [x] **P8 CLI tools** — db, appctl, caddyctl, maintenance, users, serve, doctor
-      (backup/archive/retention services pulled forward from P12)
-- [x] **P9 WALoader UI core** — login/logout/password change, dashboard + cards,
-      create-app screen with availability check, success/error/retry flows, gear modal
-- [x] **P10 Dataset & user-management UI** — concepts mapping screen, admin users UI,
-      app-owner app users UI, observations/attachments UI
-- [x] **P11 Admin panel** — configuration (DB overrides + sources), processes
-      (reconcile/resume/maintenance), Caddy panels
-- [x] **P12 Backups/retention/maintenance** — background worker (health loop + daily
-      jobs in-process), operator triggers, background_enabled setting
-- [x] **P13 Documentation** — all guides incl. bundle contract, LLM prompt template,
-      sample bundle, manual smoke checklist, README; real e2e deployment test
-- [x] **P14 Hardening & final verification** — caddy proxied round-trip e2e,
-      no-email-on-stop/restart tests, real-browser UI verification, final DoD pass,
-      tag v0.1.0
+- [x] **Q0 Archive foundation** — services/app_archive.py (archive_format 2 with
+      enriched metadata: owner username, versions, dataset rows, app users,
+      attachments), deletion switched to the shared builder,
+      services/scoped_backups.py (scopes all/db/apps/app, code-only/with-data,
+      with-logs, list, delete), zip-content + manifest tests
+- [ ] **Q1 Restore & rebuild** — services/restore.py (all-scope archives, --force
+      wipe-except-backups, states normalized to stopped), rebuild_app via the
+      deployment pipeline (kind="rebuild"), lifecycle.start venv-missing message,
+      appctl rebuild <slug>|--all, e2e backup→wipe→restore→rebuild→healthy
+- [ ] **Q2 Export/import** — export_app/import_app services (owner/name mapping,
+      slug availability, users/datasets fidelity, deploy-by-default),
+      appctl export/import, soft-delete un-delete test, e2e import round-trip
+- [ ] **Q3 Factory reset + backupctl** — services/factory_reset.py (stop all →
+      full backup into backups/factory/ → wipe except backups/ → report),
+      backupctl CLI (create/list/restore/factory-reset, typed-RESET confirmation,
+      --force, --skip-backup), retention.factory_reset_backup_days setting +
+      maintenance pruning, config docs updated
+- [ ] **Q4 UI** — Admin "Backups & reset" page (create/download/list/delete,
+      import app, danger-zone reset with typed RESET), gear dialog export +
+      rebuild-when-venv-missing, AppTest coverage
+- [ ] **Q5 Docs & final verification** — docs/backups-and-restore.md (incl.
+      machine-migration runbook), README/configuration/troubleshooting/
+      smoke-checklist updates, all suites + doctor green, tag v0.2.0
 
-## Definition of Done (G01 §9) — final status
+## Active acceptance criteria (Q0)
 
-1. ✅ Every §4 capability implemented with service-layer paths and traceable tests
-   (§6 list reviewed; 321 tests across unit/integration/e2e/caddy + AppTest UI suites)
-2. ✅ All phases P0–P14 checked off with per-phase commits
-3. ✅ On this machine: unit 315 · integration 2 · e2e 1 · caddy 3 — all green; ruff clean
-4. ✅ doctor passes (full, network); serve boots; core smoke-checklist flows verified
-   in a real browser (bootstrap, login, dashboard card + live health badge, deployed
-   app serving its Dataset Concept). A full human walk of
-   docs/manual-smoke-checklist.md is recommended before first production use,
-   including Caddy-mode browsing.
-5. ✅ All docs exist and match behavior; every setting documented (enforced by tests)
-6. ✅ argon2 everywhere; redaction tested; `private/` guard tested; no secrets committed
-7. ✅ No open blockers; final DEVLOG entry; tagged v0.1.0
-
-## Known limitations (accepted, documented)
-
-- Health checks/maintenance run only while WALoader runs (no cron/systemd by design)
-- Streamlit sessions don't survive a full browser refresh (login again)
-- The shipped `send_mail` is a logging stub — replace its body at work
-- Bundles are text-only; binary data flows through Dataset Concepts
+- Format-2 archives carry everything import needs; venvs never archived
+- Soft-delete archives produced by the shared builder (importable going forward)
+- All four backup scopes produce correct, self-describing zips; DB snapshot via
+  sqlite backup API; backups/, tmp/, uv-cache/ never nested inside a backup
+- `uv run pytest` and `uv run ruff check .` green
 
 ## Known blockers
 

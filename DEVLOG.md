@@ -329,3 +329,25 @@
   browsing can't be fully automated), and at work: replace the send_mail stub
   body per docs/user-management.md.
 - **Next:** none — goal complete. Tagged v0.1.0.
+
+## 2026-07-05 — G02 Q0 Archive foundation — complete
+
+- **Summary:** services/app_archive.py: shared format-2 builder — metadata now
+  carries owner_username, versions, dataset concepts + current-file rows, app
+  users (portable argon2 hashes) + attachments, deployments (reference), with
+  include_data switch (code-only excludes datasets/user_files) and runtime/
+  (venvs) never archived; read_metadata validates format with clear errors
+  (old format-less delete archives are politely rejected). deletion.py now
+  uses the shared builder — soft-delete archives are importable going forward.
+  services/scoped_backups.py: create_backup scopes all/db/apps/app (app scope
+  delegates to the format-2 builder → importable), consistent DB snapshot via
+  the sqlite backup API inside the zip, all-scope tree walk excluding
+  backups//tmp//uv-cache//venvs and raw DB files, logs opt-in; manifest with
+  effective-config dump + apps inventory; filesystem-only registry
+  (list_backups manual+factory with factory purge dates, delete_backup with
+  traversal guard, cleanup_factory_backups age-pruning). New documented
+  setting retention.factory_reset_backup_days=183 (example TOML +
+  configuration.md; doc-sync green).
+- **Validation:** `uv run pytest` → 329 passed; `uv run ruff check .` → clean.
+- **Known issues:** none.
+- **Next:** Q1 restore & rebuild.

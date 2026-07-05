@@ -140,6 +140,7 @@ class RetentionConfig(_Section):
     backup_days: int = 183
     log_days: int = 183
     deleted_app_days: int = 183
+    factory_reset_backup_days: int = 183  # ~6 months; factory-reset safety backups
 
 
 class DatabaseConfig(_Section):

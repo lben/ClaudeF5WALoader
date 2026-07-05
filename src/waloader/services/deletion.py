@@ -1,48 +1,27 @@
-"""App deletion: soft delete -> compressed archive -> retention -> hard delete."""
+"""App deletion: soft delete -> compressed archive -> retention -> hard delete.
+
+Archives use the shared format-2 builder (services/app_archive.py), so a
+soft-delete archive is importable — deletion is reversible until retention
+expires (`appctl import <archive>` un-deletes).
+"""
 
 from __future__ import annotations
 
-import json
 import logging
 import shutil
 import sqlite3
-import zipfile
-from dataclasses import asdict
 from datetime import timedelta
 from pathlib import Path
 
 from waloader.config import WALoaderConfig
 from waloader.models import App
-from waloader.paths import ensure_dir
 from waloader.repositories import apps as apps_repo
 from waloader.repositories import audit as audit_repo
-from waloader.repositories import deployments as deployments_repo
-from waloader.repositories import versions as versions_repo
 from waloader.services import caddy, layout, processes, states
+from waloader.services.app_archive import build_app_archive
 from waloader.util import utc_now, utc_now_iso
 
 log = logging.getLogger(__name__)
-
-ARCHIVE_EXCLUDED_TOP_DIRS = {"runtime"}  # venvs are rebuildable, never archived
-
-
-def _archive_app_dir(config: WALoaderConfig, app: App, metadata: dict) -> Path:
-    ensure_dir(config.archives_dir)
-    stamp = utc_now().strftime("%Y%m%dT%H%M%S")
-    archive_path = config.archives_dir / f"{app.slug}-{stamp}.zip"
-    app_directory = layout.app_dir(config, app.slug)
-    with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as archive:
-        archive.writestr("metadata.json", json.dumps(metadata, indent=2))
-        if app_directory.exists():
-            for path in sorted(app_directory.rglob("*")):
-                if not path.is_file():
-                    continue
-                relative = path.relative_to(app_directory)
-                if relative.parts and relative.parts[0] in ARCHIVE_EXCLUDED_TOP_DIRS:
-                    continue
-                archive.write(path, str(Path(app.slug) / relative))
-        # log references, not full logs: record where they live
-    return archive_path
 
 
 def soft_delete_app(
@@ -51,15 +30,9 @@ def soft_delete_app(
     """Stop, archive, mark deleted (pending hard delete), hide, free disk."""
     processes.stop_app(conn, config, app)
     app = states.transition(conn, app, states.PENDING_DELETE)
-
-    metadata = {
-        "app": asdict(app),
-        "versions": [asdict(v) for v in versions_repo.list_for_app(conn, app.id)],
-        "deployments": [asdict(d) for d in deployments_repo.list_for_app(conn, app.id)],
-        "log_dir_reference": f"logs/apps/{app.slug}/",
-        "archived_at": utc_now_iso(),
-    }
-    archive_path = _archive_app_dir(config, app, metadata)
+    archive_path = build_app_archive(
+        conn, config, app, include_data=True, dest_dir=config.archives_dir
+    )
 
     purge_after = (
         utc_now() + timedelta(days=config.retention.deleted_app_days)

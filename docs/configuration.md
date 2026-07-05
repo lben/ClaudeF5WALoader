@@ -284,6 +284,13 @@ Age limit for log files during `cleanup-logs`.
 Days a soft-deleted app's archive (and slug reservation) survives before hard delete.
 Lower it to reclaim disk sooner; raising it does not resurrect already-purged apps.
 
+### `retention.factory_reset_backup_days` — default `183` (~6 months)
+How long the full backup taken automatically before a **factory reset**
+(`data/backups/factory/…`) is kept; daily maintenance prunes older ones.
+Manual backups under `data/backups/manual/` are deliberate operator artifacts
+and never expire automatically. Raising this after a reset extends the
+remaining life of existing factory backups (pruning is age-based).
+
 All: **no secrets**, **commit-safe**.
 
 ## [database]

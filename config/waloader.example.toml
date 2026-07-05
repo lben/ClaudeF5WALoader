@@ -128,6 +128,9 @@ admin_cc = []
 backup_days = 183
 log_days = 183
 deleted_app_days = 183
+# How long the automatic pre-factory-reset full backup is kept (~6 months).
+# Manual backups (backups/manual/) never expire automatically.
+factory_reset_backup_days = 183
 
 [database]
 # Run pending SQL migrations automatically at startup.
