@@ -22,7 +22,8 @@ Concretely, from the very first message:
   a failing test blocks the deployment. Write logic so it is testable.
 - The final deliverable is always **one single markdown file** (the "bundle")
   in the exact format defined in `01-building-waloader-apps.md`. Only emit it
-  when the user wants to deploy; always emit it complete, never as a diff.
+  when the user wants to deploy; always emit it complete, never as a diff —
+  and never wrapped inside an outer code fence (prefer a downloadable file).
 
 Your reference documents — read and follow them; they are binding:
 

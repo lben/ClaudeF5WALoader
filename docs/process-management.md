@@ -60,6 +60,30 @@ times. A `running → failed` transition triggers the crash-notification rules
 run only while WALoader itself is up. `appctl health` / `reconcile` cover the
 gaps manually.
 
+## Running WALoader itself as a daemon (survives SSH logout)
+
+Foreground `serve` dies with your terminal. On servers, use daemon mode:
+
+bash/zsh (macOS/Linux):
+
+```bash
+uv run python -m waloader.tools.serve --daemon    # detached; logs to data/logs/waloader/serve.log
+uv run python -m waloader.tools.serve --status
+uv run python -m waloader.tools.serve --stop      # child apps keep running
+```
+
+PowerShell (Windows): identical commands.
+
+The daemon runs in its own session with no controlling terminal, so a dropped
+SSH connection cannot SIGHUP it — no `nohup`/`tmux` gymnastics needed. It is
+tracked by a pidfile (pid + creation time) at `data/waloader.pid.json`.
+
+**If it still dies when you log out** (some hardened RHEL images set
+`KillUserProcesses=yes` in systemd-logind, which kills *all* of a user's
+processes at logout — including detached ones and your child apps), the fix
+is lingering: `loginctl enable-linger $USER` (may require an admin). Verify
+with `loginctl show-user $USER | grep Linger`.
+
 ## Startup reconciliation
 
 At every WALoader start (serve and UI boot), DB state is compared with

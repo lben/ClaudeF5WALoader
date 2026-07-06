@@ -511,3 +511,52 @@
 - **Known issues:** none. DESIGN_LANGUAGE.md must be added to authoring_kit/
   by the operator before use (the kit instructs the LLM to ask for it if
   absent).
+
+## 2026-07-06 — Field-feedback round 1 (first real RHEL + Sonnet 4.6 usage)
+
+- **Bundle tolerance (parser):** sanitize_bundle_text strips trailing
+  `<workspaces-note>…</workspaces-note>` lines (corporate LLM export
+  artifact) and unwraps a single accidental outer ```markdown fence (the
+  copy-from-chat mistake that failed the user's first real upload) — only
+  when the opener has no real info string, so clean bundles are untouched;
+  notes inside file contents are preserved (tested).
+- **Bundle-declared Dataset Concepts:** new optional metadata key
+  `dataset_concepts = [...]`; deployment auto-creates missing concepts
+  (invalid names warn, never fail). Sample bundle + kit + contract doc
+  updated; e2e asserts auto-creation.
+- **SDK behavior change:** load_dataset now returns None for an UNDEFINED
+  concept (previously raised UnknownConceptError → ugly traceback screen in
+  the field). required=True keeps the distinct hard errors. Rationale: a
+  non-technical owner fixes "not defined" and "not uploaded" identically on
+  the Datasets page, so both must render the friendly empty state.
+- **UI fixes from field testing:** (1) stale deploy-failure panel suppressed
+  once the app has a clean successfully-deployed version (signal:
+  last_deploy_error cleared + current_version set); (2) successful
+  create/retry now lands on the Dashboard (st.switch_page via new ui/nav
+  registry) instead of a confusing stayed-on-Create screen; (3) flash-toast
+  helper (queued across st.rerun, rendered by app.py) gives success feedback
+  for dataset uploads/replacements/concept save/delete, app-user
+  create/delete/deactivate/reactivate/attach, lifecycle stop/resume/restart/
+  delete, and the user-mgmt toggle; (4) gear dialog gained real "Manage
+  Dataset Concepts" / "Manage app users" buttons that switch page with the
+  app preselected; (5) gear icon vertically centered on cards
+  (vertical_alignment="center"); (6) clipboard hint caption next to error
+  blocks (browsers block the copy button over plain HTTP — documented, not
+  fixable app-side).
+- **serve --daemon / --status / --stop:** detached Streamlit (own session,
+  no controlling terminal → survives SSH logout), pidfile with create_time,
+  logs to data/logs/waloader/serve.log; --status/--stop use a light config
+  path that never migrates/creates the DB. Docs: process-management daemon
+  section incl. logind KillUserProcesses / loginctl enable-linger note;
+  troubleshooting runbook now says --daemon; new entries for the copy button
+  and dying-on-logout.
+- **Kit hardening for Sonnet-class models (answers the pending question —
+  the kit worked in the field; both real failures were bundle artifacts, now
+  tolerated platform-side AND taught kit-side):** never wrap the bundle in
+  an outer fence (SYSTEM_PROMPT + 01), declare dataset_concepts, ALWAYS
+  include the require_login gate (platform toggle alone controls login —
+  field confusion), concept-named empty-state message.
+- **Validation:** unit 399 passed (+19); e2e 4 passed (real deployments of
+  the updated sample bundle: auto-created concept + auth gate live); caddy 3
+  passed; ruff clean.
+- **Known issues:** none.

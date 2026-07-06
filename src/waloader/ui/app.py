@@ -7,6 +7,7 @@ import streamlit as st
 from waloader.services import authorization
 from waloader.ui import (
     common,
+    nav,
     page_account,
     page_admin_backups,
     page_admin_caddy,
@@ -33,14 +34,15 @@ with st.sidebar:
 
 _sections: dict[str, list[st.Page]] = {
     "Apps": [
-        st.Page(page_dashboard.render, title="Dashboard", icon="🏠",
-                url_path="dashboard", default=True),
-        st.Page(page_create.render, title="Create new app", icon="➕",
-                url_path="create"),
-        st.Page(page_datasets.render, title="Datasets", icon="🗃",
-                url_path="datasets"),
-        st.Page(page_app_users.render, title="App users", icon="👥",
-                url_path="app-users"),
+        nav.register("dashboard", st.Page(page_dashboard.render, title="Dashboard",
+                                          icon="🏠", url_path="dashboard",
+                                          default=True)),
+        nav.register("create", st.Page(page_create.render, title="Create new app",
+                                       icon="➕", url_path="create")),
+        nav.register("datasets", st.Page(page_datasets.render, title="Datasets",
+                                         icon="🗃", url_path="datasets")),
+        nav.register("app_users", st.Page(page_app_users.render, title="App users",
+                                          icon="👥", url_path="app-users")),
     ],
     "You": [
         st.Page(page_account.render, title="Account", icon="🔑",
@@ -61,4 +63,5 @@ if authorization.is_admin(_user):
                 url_path="admin-users"),
     ]
 
+common.show_flashes()
 st.navigation(_sections).run()

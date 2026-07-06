@@ -27,9 +27,12 @@ connectivity — with exact failure details per line.
    URLs also `executables.caddy_binary` + `[caddy] enabled = true`.
 4. `uv run python -m waloader.tools.doctor` until everything passes.
 5. `uv run python -m waloader.tools.users create-admin <you>`
-6. `uv run python -m waloader.tools.serve` (keep it in tmux/screen — WALoader
-   deliberately does not require systemd; child apps survive WALoader
-   restarts either way).
+6. `uv run python -m waloader.tools.serve --daemon` — detached, survives SSH
+   logout, logs to `data/logs/waloader/serve.log` (`--status` / `--stop` to
+   manage; no systemd or tmux needed; child apps survive WALoader restarts
+   either way). See "Running WALoader itself as a daemon" in
+   `docs/process-management.md`, including the `loginctl enable-linger` note
+   for hardened boxes.
 7. Optional: `uv run python -m waloader.tools.caddyctl start`.
 
 No code changes are expected between macOS, Windows 11, and RHEL — config
@@ -71,6 +74,18 @@ rebooted). Admin panel → Processes → resume selected/all, or `appctl start`.
 `send_mail` in `src/waloader/notifications/mailer.py` with the corporate
 mailer. Also check: owner email set, grace period elapsed, app had passed
 initial health.
+
+**The "copy" button on code blocks does nothing.** Browsers only allow the
+clipboard API in a *secure context* — HTTPS or `localhost`. Over plain HTTP
+on a server hostname (the normal WALoader setup) the button is silently
+blocked by the browser; this is not fixable in WALoader. Select the text and
+press Ctrl+C instead (the UI shows this hint next to error blocks). Serving
+through HTTPS would restore the button.
+
+**`serve` dies when I log out of the server.** Use
+`serve --daemon` (see the runbook above / `docs/process-management.md`). If
+the daemon *still* dies at logout, the box has logind `KillUserProcesses=yes`
+— ask for `loginctl enable-linger $USER`.
 
 **Database locked / busy.** Connections use WAL + 5 s busy timeout; sustained
 lock errors usually mean the data dir is on a network share — keep

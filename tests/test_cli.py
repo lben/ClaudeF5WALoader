@@ -161,6 +161,28 @@ class TestServe:
         assert "WALoader UI: http://localhost:8501" in out
         assert "streamlit" in out
 
+    def test_daemon_status_not_running(self, cli_env, capsys) -> None:
+        assert serve.main(["--status"]) == 0
+        assert "not running" in capsys.readouterr().out
+
+    def test_daemon_status_with_stale_pidfile(self, cli_env, capsys) -> None:
+        import json
+
+        cli_env.data_dir.mkdir(parents=True, exist_ok=True)
+        (cli_env.data_dir / "waloader.pid.json").write_text(
+            json.dumps({"pid": 2_111_111, "create_time": 1.0}), encoding="utf-8"
+        )
+        assert serve.main(["--status"]) == 0
+        assert "not running" in capsys.readouterr().out  # dead pid never matches
+
+    def test_daemon_stop_when_not_running(self, cli_env, capsys) -> None:
+        assert serve.main(["--stop"]) == 0
+        assert "not running" in capsys.readouterr().out
+
+    def test_daemon_and_stop_are_exclusive(self, cli_env) -> None:
+        with pytest.raises(SystemExit):
+            serve.main(["--daemon", "--stop"])
+
 
 class TestDoctor:
     def test_offline_doctor_passes_here(self, cli_env, capsys) -> None:

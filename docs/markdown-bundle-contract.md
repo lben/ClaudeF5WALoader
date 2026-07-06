@@ -15,15 +15,35 @@ The **first fenced code block** in the document must have the info string
 
 ~~~markdown
 ```toml waloader-bundle
-bundle_format = 1        # required — only 1 is accepted
-entrypoint = "app.py"    # required — must match one of the file sections
-app_name = "My App"      # optional, informational (the UI field wins)
-description = "..."      # optional
+bundle_format = 1                  # required — only 1 is accepted
+entrypoint = "app.py"              # required — must match one of the file sections
+app_name = "My App"                # optional, informational (the UI field wins)
+description = "..."                # optional
+dataset_concepts = ["clients"]     # optional — see below
 ```
 ~~~
 
 Prose before the metadata block is ignored. Unknown keys produce a warning,
 not an error.
+
+**`dataset_concepts`** (optional list of concept names): WALoader creates any
+missing concepts automatically at deployment, so a freshly deployed app shows
+its *No data uploaded yet* state instead of a missing-concept condition and
+the owner only has to upload the data files. Invalid names are reported as
+warnings in the deployment log and never fail the deployment.
+
+## Tolerated upload artifacts
+
+Real-world LLM exports add cruft; WALoader strips these at the upload
+boundary (don't rely on them — emit clean bundles):
+
+- Trailing `<workspaces-note>…</workspaces-note>` lines appended by corporate
+  LLM workspaces are removed before parsing (the preserved original bundle
+  keeps them; the reconstructed app never sees them).
+- A single accidental outer ` ```markdown ` fence wrapped around the whole
+  document (the classic copy-from-chat mistake) is unwrapped, provided the
+  first fence carries no real info string and a matching closing fence ends
+  the document.
 
 ## 2. File sections
 

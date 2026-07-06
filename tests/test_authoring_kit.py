@@ -58,6 +58,22 @@ class TestBundleContractTaught:
     def test_nested_fence_rule_taught(self, kit: dict[str, str]) -> None:
         assert "FOUR backticks" in kit["01-building-waloader-apps.md"]
 
+    def test_dataset_concepts_declaration_taught(self, kit: dict[str, str]) -> None:
+        contract = kit["01-building-waloader-apps.md"]
+        assert "dataset_concepts" in contract
+        assert "auto-creates them at deployment" in contract
+
+    def test_no_outer_fence_rule_taught(self, kit: dict[str, str]) -> None:
+        # the classic chat-output failure seen in field testing
+        assert "Never wrap the bundle in an outer code fence" in \
+            kit["01-building-waloader-apps.md"]
+        assert "never wrapped inside an outer code fence" in kit["SYSTEM_PROMPT.md"]
+
+    def test_login_gate_always_included(self, kit: dict[str, str]) -> None:
+        contract = kit["01-building-waloader-apps.md"]
+        assert "ALWAYS include the gate" in contract
+        assert "require_login" in contract
+
     def test_path_rules_taught(self, kit: dict[str, str]) -> None:
         contract = kit["01-building-waloader-apps.md"]
         assert "private/" in contract

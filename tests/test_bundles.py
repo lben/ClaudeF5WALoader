@@ -199,3 +199,79 @@ class TestBytesBoundary:
     def test_not_utf8(self) -> None:
         with pytest.raises(bundles.BundleError, match="not valid UTF-8"):
             bundles.parse_bundle_bytes(b"\xff\xfe\x00bad", max_mb=1)
+
+
+class TestLlmArtifactTolerance:
+    """Real-world cruft from corporate LLM exports (field-tested)."""
+
+    def test_trailing_workspaces_note_stripped(self) -> None:
+        text = (
+            simple_bundle()
+            + "\n<workspaces-note>DO NOT REMOVE|abc-123-uuid</workspaces-note>\n\n"
+        )
+        parsed = bundles.parse_bundle(text)
+        assert parsed.file_paths() == ["app.py", "pages/detail.py"]
+        # and it never leaks into a reconstructed file
+        assert all("workspaces-note" not in f.content for f in parsed.files)
+
+    def test_note_inside_file_content_is_preserved(self) -> None:
+        text = (
+            META
+            + "## file: app.py\n```python\n"
+            + "TAG = '<workspaces-note>DO NOT REMOVE|x</workspaces-note>'\n"
+            + "```\n"
+        )
+        parsed = bundles.parse_bundle(text)
+        assert "workspaces-note" in parsed.files[0].content
+
+    def test_outer_markdown_wrapper_unwrapped(self) -> None:
+        wrapped = "````markdown\n" + simple_bundle() + "````\n"
+        parsed = bundles.parse_bundle(wrapped)
+        assert parsed.entrypoint == "app.py"
+        assert parsed.file_paths() == ["app.py", "pages/detail.py"]
+
+    def test_bare_fence_wrapper_unwrapped(self) -> None:
+        wrapped = "`````\n" + simple_bundle() + "\n`````"
+        assert bundles.parse_bundle(wrapped).entrypoint == "app.py"
+
+    def test_wrapper_plus_trailing_note(self) -> None:
+        wrapped = (
+            "````markdown\n" + simple_bundle()
+            + "````\n<workspaces-note>DO NOT REMOVE|u</workspaces-note>\n"
+        )
+        assert bundles.parse_bundle(wrapped).entrypoint == "app.py"
+
+    def test_clean_bundle_is_untouched(self) -> None:
+        # the metadata fence has a real info string -> never mistaken for a wrapper
+        parsed = bundles.parse_bundle(simple_bundle())
+        assert parsed.files[0].content == "import streamlit as st\nst.title('hi')"
+
+
+class TestDatasetConceptsMetadata:
+    def test_declared_concepts_parsed(self) -> None:
+        text = (
+            "```toml waloader-bundle\n"
+            "bundle_format = 1\n"
+            'entrypoint = "app.py"\n'
+            'dataset_concepts = ["clients", "transactions"]\n'
+            "```\n"
+            "## file: app.py\n```python\npass\n```\n"
+        )
+        parsed = bundles.parse_bundle(text)
+        assert parsed.dataset_concepts == ["clients", "transactions"]
+        assert parsed.warnings == []  # a known key, not a warning
+
+    def test_missing_key_means_empty(self) -> None:
+        assert bundles.parse_bundle(simple_bundle()).dataset_concepts == []
+
+    def test_wrong_type_rejected(self) -> None:
+        text = (
+            "```toml waloader-bundle\n"
+            "bundle_format = 1\n"
+            'entrypoint = "app.py"\n'
+            'dataset_concepts = "clients"\n'
+            "```\n"
+            "## file: app.py\n```python\npass\n```\n"
+        )
+        with pytest.raises(bundles.BundleError, match="list of strings"):
+            bundles.parse_bundle(text)

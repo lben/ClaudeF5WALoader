@@ -114,7 +114,11 @@ class TestFullDeploymentRoundTrip:
         assert _http_ok(f"http://127.0.0.1:{app.port}/")
 
         # -- datasets round trip -----------------------------------------
-        concept = datasets_service.create_concept(conn, app, "clients")
+        # the bundle declares dataset_concepts = ["clients"]: auto-created
+        from waloader.repositories import datasets as datasets_repo
+
+        concept = datasets_repo.get_concept_by_name(conn, app.id, "clients")
+        assert concept is not None, "bundle-declared concept was not auto-created"
         df1 = pd.DataFrame({"client": ["Acme", "Globex"], "aum_musd": [1.0, 2.0]})
         datasets_service.store_upload(
             conn, config, app, concept, filename="clients.csv",

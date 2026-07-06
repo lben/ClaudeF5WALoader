@@ -16,7 +16,7 @@ from waloader.services import (
     lifecycle,
     processes,
 )
-from waloader.ui import common
+from waloader.ui import common, nav
 
 CARDS_PER_ROW = 3
 
@@ -65,9 +65,23 @@ def _gear_dialog(app_id: int) -> None:
         if enabled != bool(app.user_mgmt_enabled):
             app = app_users_service.set_user_management(conn, app, enabled,
                                                         actor=user.username)
+            common.toast_now(
+                f"Users Management Support {'enabled' if enabled else 'disabled'} "
+                f"for '{app.name}'"
+                + (" — the app now requires login" if enabled else "")
+            )
 
-        st.caption("*Dataset Concepts: use the **Datasets** page in the sidebar. "
-                   "App users: the **App users** page.*")
+        link_columns = st.columns(2)
+        if link_columns[0].button("🗃 Manage Dataset Concepts",
+                                  key=f"goto_ds_{app.id}",
+                                  use_container_width=True):
+            st.session_state["preselect_app_slug"] = app.slug
+            nav.switch("datasets")
+        if link_columns[1].button("👥 Manage app users",
+                                  key=f"goto_au_{app.id}",
+                                  use_container_width=True):
+            st.session_state["preselect_app_slug"] = app.slug
+            nav.switch("app_users")
 
         # --- rebuild (after restore/import: venvs are never archived) ------
         if deployment.needs_rebuild(config, app):
@@ -120,14 +134,27 @@ def _gear_dialog(app_id: int) -> None:
                 st.session_state.pop(_confirm_key(app.id), None)
                 with st.spinner(f"{pending.capitalize()}ing…"):
                     if pending == "stop":
-                        lifecycle.stop(conn, config, app, actor=user.username)
+                        outcome = lifecycle.stop(conn, config, app,
+                                                 actor=user.username)
+                        common.flash(outcome.message,
+                                     icon="✅" if outcome.ok else "⚠️")
                     elif pending == "resume":
-                        lifecycle.start(conn, config, app, actor=user.username)
+                        outcome = lifecycle.start(conn, config, app,
+                                                  actor=user.username)
+                        common.flash(outcome.message,
+                                     icon="✅" if outcome.ok else "⚠️")
                     elif pending == "restart":
-                        lifecycle.restart(conn, config, app, actor=user.username)
+                        outcome = lifecycle.restart(conn, config, app,
+                                                    actor=user.username)
+                        common.flash(outcome.message,
+                                     icon="✅" if outcome.ok else "⚠️")
                     elif pending == "delete":
                         deletion.soft_delete_app(conn, config, app,
                                                  actor=user.username)
+                        common.flash(
+                            f"'{app.name}' deleted — archived and recoverable "
+                            "until retention expires"
+                        )
                 st.rerun()
             if cancel.button("Cancel", key=f"cancel_{app.id}"):
                 st.session_state.pop(_confirm_key(app.id), None)
@@ -155,7 +182,7 @@ def _gear_dialog(app_id: int) -> None:
 
 def _render_card(config, conn, app) -> None:
     with st.container(border=True):
-        title, gear = st.columns([6, 1])
+        title, gear = st.columns([6, 1], vertical_alignment="center")
         title.markdown(f"**{app.name}**")
         if gear.button("⚙️", key=f"gear_{app.id}", help="Configure this app"):
             _gear_dialog(app.id)

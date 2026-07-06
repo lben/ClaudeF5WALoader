@@ -6,7 +6,7 @@ import streamlit as st
 
 from waloader.repositories import apps as apps_repo
 from waloader.services import deployment, health, slugs
-from waloader.ui import common
+from waloader.ui import common, nav
 
 
 def render() -> None:
@@ -67,4 +67,9 @@ def render() -> None:
                     return
             app = apps_repo.get(conn, app.id)
             common.store_deploy_outcome(app, result, health.app_url(config, app))
+        if result.ok:
+            # land on the dashboard with the success panel — staying on the
+            # (now reset) create form was confusing in field testing
+            common.flash(f"'{app.name}' deployed successfully")
+            nav.switch("dashboard")
         st.rerun()

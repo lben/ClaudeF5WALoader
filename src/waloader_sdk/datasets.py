@@ -34,9 +34,14 @@ class DatasetNotUploadedError(RuntimeError):
 def load_dataset(name: str, *, required: bool = False, app_slug: str | None = None):
     """Load the dataset mapped to a concept name as a pandas DataFrame.
 
-    Returns None when the concept exists but no file was uploaded yet
-    (or raises DatasetNotUploadedError when ``required=True``).
-    Raises UnknownConceptError when the concept is not defined for this app.
+    Returns None when there is no data to load yet — whether the concept has
+    no uploaded file OR the concept has not been defined in WALoader at all.
+    Non-technical owners fix both the same way (Datasets page), so the app
+    should show its friendly "No data uploaded yet" state, never a traceback.
+
+    ``required=True`` turns the soft cases into hard errors for apps that
+    cannot render without data: UnknownConceptError (concept not defined) or
+    DatasetNotUploadedError (defined, nothing uploaded).
     """
     try:
         import pandas as pd
@@ -61,10 +66,13 @@ def load_dataset(name: str, *, required: bool = False, app_slug: str | None = No
         conn.close()
 
     if row is None:
-        raise UnknownConceptError(
-            f"Dataset concept {name!r} is not defined for app "
-            f"{context.app_slug!r}. Define it in WALoader's Dataset Concepts screen."
-        )
+        if required:
+            raise UnknownConceptError(
+                f"Dataset concept {name!r} is not defined for app "
+                f"{context.app_slug!r}. Define it in WALoader's Dataset "
+                "Concepts screen."
+            )
+        return None
     if row["canonical_path"] is None:
         if required:
             raise DatasetNotUploadedError(

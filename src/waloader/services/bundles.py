@@ -26,6 +26,9 @@ HIDDEN_ALLOWLIST_FILES = {".gitignore"}
 
 _FILE_HEADING_RE = re.compile(r"^##\s*file:\s*(.+?)\s*$", re.IGNORECASE)
 _FENCE_OPEN_RE = re.compile(r"^(`{3,})(.*)$")
+# Real-world LLM export artifacts tolerated at the upload boundary:
+_WORKSPACES_NOTE_RE = re.compile(r"^<workspaces-note>.*</workspaces-note>\s*$")
+_WRAPPER_FENCE_RE = re.compile(r"^(`{3,})\s*(?:markdown|md)?\s*$", re.IGNORECASE)
 
 
 class BundleError(Exception):
@@ -44,10 +47,55 @@ class ParsedBundle:
     app_name: str = ""
     description: str = ""
     files: list[BundleFile] = field(default_factory=list)
+    dataset_concepts: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
     def file_paths(self) -> list[str]:
         return [f.path for f in self.files]
+
+
+def _strip_trailing_note(lines: list[str]) -> list[str]:
+    """Drop trailing blank lines and <workspaces-note> lines (corporate LLM
+    exports append one after the document; it must never reach the app)."""
+    while lines and (
+        not lines[-1].strip() or _WORKSPACES_NOTE_RE.match(lines[-1].strip())
+    ):
+        lines.pop()
+    return lines
+
+
+def _unwrap_outer_fence(lines: list[str]) -> list[str]:
+    """Recover bundles pasted inside one big ```markdown fence.
+
+    Chat LLMs often emit the whole bundle inside an outer code block; saved to
+    a file, that wrapper makes the first fence 'markdown' instead of the
+    metadata block. Unwrap ONLY when the first non-empty line is a bare fence
+    with no/markdown info (never a valid metadata opener) and the last
+    non-empty line is a long-enough closing fence.
+    """
+    start = next((i for i, line in enumerate(lines) if line.strip()), None)
+    if start is None:
+        return lines
+    opener = _WRAPPER_FENCE_RE.match(lines[start])
+    if opener is None:
+        return lines
+    end = next(
+        (i for i in range(len(lines) - 1, start, -1) if lines[i].strip()), None
+    )
+    if end is None or end == start:
+        return lines
+    closer = re.match(rf"^`{{{len(opener.group(1))},}}\s*$", lines[end])
+    if closer is None:
+        return lines
+    return lines[start + 1:end]
+
+
+def sanitize_bundle_text(text: str) -> str:
+    """Upload-boundary tolerance for known LLM export artifacts."""
+    lines = _strip_trailing_note(text.splitlines())
+    lines = _unwrap_outer_fence(lines)
+    lines = _strip_trailing_note(lines)  # a note may sit inside the wrapper too
+    return "\n".join(lines)
 
 
 def validate_bundle_relative_path(path: str) -> None:
@@ -118,7 +166,7 @@ def _read_fence(lines: list[str], start: int) -> _Fence | None:
 
 
 def parse_bundle(text: str, *, max_files: int = 200) -> ParsedBundle:
-    lines = text.splitlines()
+    lines = sanitize_bundle_text(text).splitlines()
 
     # --- metadata: the first fence in the document ----------------------
     meta_fence: _Fence | None = None
@@ -151,7 +199,9 @@ def parse_bundle(text: str, *, max_files: int = 200) -> ParsedBundle:
         raise BundleError(f"Metadata block is not valid TOML: {exc}") from exc
 
     warnings: list[str] = []
-    known_keys = {"bundle_format", "entrypoint", "app_name", "description"}
+    known_keys = {
+        "bundle_format", "entrypoint", "app_name", "description", "dataset_concepts",
+    }
     for key in sorted(set(meta) - known_keys):
         warnings.append(f"Unknown metadata key ignored: {key!r}")
 
@@ -164,6 +214,14 @@ def parse_bundle(text: str, *, max_files: int = 200) -> ParsedBundle:
     entrypoint = meta.get("entrypoint")
     if not entrypoint or not isinstance(entrypoint, str):
         raise BundleError("Metadata must declare a non-empty string 'entrypoint'.")
+    dataset_concepts = meta.get("dataset_concepts", [])
+    if not isinstance(dataset_concepts, list) or not all(
+        isinstance(name, str) for name in dataset_concepts
+    ):
+        raise BundleError(
+            "Metadata 'dataset_concepts' must be a list of strings, e.g. "
+            'dataset_concepts = ["clients", "transactions"].'
+        )
 
     # --- file sections ---------------------------------------------------
     files: list[BundleFile] = []
@@ -218,6 +276,7 @@ def parse_bundle(text: str, *, max_files: int = 200) -> ParsedBundle:
         app_name=str(meta.get("app_name", "") or ""),
         description=str(meta.get("description", "") or ""),
         files=files,
+        dataset_concepts=dataset_concepts,
         warnings=warnings,
     )
 

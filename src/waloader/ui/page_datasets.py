@@ -32,6 +32,7 @@ def _concept_row(config, conn, user, app, concept, current) -> None:
                 datasets_service.delete_concept(conn, config, app, concept.id,
                                                 actor=user.username)
                 st.session_state.pop(confirm_key, None)
+                common.flash(f"Concept '{concept.name}' and its data deleted")
                 st.rerun()
             if no.button("Cancel", key=f"no_del_{concept.id}"):
                 st.session_state.pop(confirm_key, None)
@@ -84,6 +85,10 @@ def _concept_row(config, conn, user, app, concept, current) -> None:
                 except datasets_service.DatasetError as exc:
                     st.error(str(exc))
                     return
+                common.flash(
+                    f"'{uploaded.name}' uploaded for '{concept.name}' — the app "
+                    "can use it now"
+                )
                 st.rerun()
             return
 
@@ -116,6 +121,9 @@ def _concept_row(config, conn, user, app, concept, current) -> None:
             except datasets_service.DatasetError as exc:
                 st.error(str(exc))
                 return
+            common.flash(
+                f"'{concept.name}' replaced with '{uploaded.name}'"
+            )
             st.rerun()
 
 
@@ -134,8 +142,12 @@ def render() -> None:
         if not apps:
             st.info("Create an app first — then map its Dataset Concepts here.")
             return
+        preselect = st.session_state.pop("preselect_app_slug", None)
+        index = next(
+            (i for i, a in enumerate(apps) if a.slug == preselect), 0
+        ) if preselect else 0
         app = st.selectbox(
-            "App", apps, format_func=lambda a: f"{a.name} ({a.slug})"
+            "App", apps, index=index, format_func=lambda a: f"{a.name} ({a.slug})"
         )
 
         with st.form("add_concept", clear_on_submit=True):
@@ -151,6 +163,8 @@ def render() -> None:
             except datasets_service.DatasetError as exc:
                 st.error(str(exc))
             else:
+                common.flash(f"Concept '{new_name.strip()}' saved — upload its "
+                             "data file below")
                 st.rerun()
 
         pairs = datasets_service.list_concepts_with_files(conn, app)

@@ -8,6 +8,7 @@ bundle_format = 1
 entrypoint = "app.py"
 app_name = "Client Positions"
 description = "Sample finance dashboard demonstrating Dataset Concepts"
+dataset_concepts = ["clients"]
 ```
 
 The entrypoint. It uses the `[clients]` Dataset Concept through the WALoader
@@ -22,6 +23,14 @@ import streamlit as st
 from helpers import APP_TITLE, HELP_TEXT
 
 st.set_page_config(page_title=APP_TITLE, layout="wide")
+
+try:  # login gate: a no-op unless the owner enables it in WALoader
+    from waloader_sdk.auth import require_login
+
+    require_login()
+except ImportError:  # local development outside WALoader
+    pass
+
 st.title(APP_TITLE)
 
 try:

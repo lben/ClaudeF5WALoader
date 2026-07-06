@@ -81,12 +81,16 @@ def load(concept: str) -> pd.DataFrame | None:
 
 
 def empty_state(concept: str) -> None:
+    message = (
+        f"No data uploaded yet for '{concept}' — the app owner can upload it "
+        "in WALoader under Datasets."
+    )
     try:
         from waloader_sdk.datasets import no_data_placeholder
-        no_data_placeholder(stop=True)
+        no_data_placeholder(message, stop=True)
     except ImportError:
         import streamlit as st
-        st.markdown("*No data uploaded yet*")
+        st.markdown(f"*{message}*")
         st.stop()
 ```
 
@@ -120,21 +124,28 @@ Non-negotiables:
   upload real files themselves, and WALoader schema-checks replacements.
 - Apps that use datasets must declare `pandas` and `pyarrow` in dependencies.
 
-## 5. Login (only when the user asks for it)
+## 5. Login — ALWAYS include the gate; WALoader's toggle controls it
 
-If the user wants their app protected by a login, use the WALoader user
-management SDK — never roll your own:
+Include this at the top of `app.py` (right after `st.set_page_config`) in
+**every app**, whether or not the user mentioned login:
 
 ```python
-from waloader_sdk.auth import require_login, logout_button
+try:
+    from waloader_sdk.auth import require_login
 
-user = require_login()   # no-op (None) when login is disabled for this app
+    user = require_login()   # None when login is disabled for this app
+except ImportError:          # local preview — no login
+    user = None
 ```
 
-Guard the import with try/except ImportError like `data.py` does (local
-previews skip login). Tell the user to switch on *Users Management Support*
-for the app in WALoader and create their app users there. Do NOT add
-`argon2-cffi` or any auth library to dependencies — WALoader provides it.
+`require_login()` is a no-op unless the app's owner switches on *Users
+Management Support* in WALoader — the platform toggle alone decides whether
+the login screen appears, with zero code changes. (Field lesson: owners flip
+that toggle expecting a login screen; an app without this call silently stays
+open.) When the user *asks* for login, additionally use `logout_button()` in
+the sidebar and tell them to create their app users on WALoader's *App users*
+page. Never roll your own auth; never add `argon2-cffi` to dependencies —
+WALoader provides it.
 
 ## 6. Tests (mandatory)
 
@@ -195,6 +206,7 @@ bundle_format = 1
 entrypoint = "app.py"
 app_name = "Clients Dashboard"
 description = "AUM by client and region"
+dataset_concepts = ["clients"]
 ```
 
 ## file: app.py
@@ -215,6 +227,14 @@ Rules the platform enforces (violations reject the whole upload):
 
 - The **first fenced code block** must have info string `toml waloader-bundle`
   and declare `bundle_format = 1` and `entrypoint = "app.py"`.
+- **List every Dataset Concept the app uses in `dataset_concepts`** — WALoader
+  auto-creates them at deployment, so the app shows its friendly *No data
+  uploaded yet* state immediately and the owner only has to upload files.
+- **Never wrap the bundle in an outer code fence.** The document's first
+  content must be the title/metadata block itself — not a ` ```markdown `
+  wrapper around everything (the classic chat-output mistake; the platform
+  tolerates one accidental wrapper, but don't rely on it). Deliver the bundle
+  as a downloadable file when your chat environment supports it.
 - Each file starts with a level-2 heading `## file: relative/path` followed by
   ONE fenced code block containing the file's full content, verbatim. Prose
   between sections is fine (annotate freely).

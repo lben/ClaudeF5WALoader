@@ -287,6 +287,50 @@ class TestUpdateFlow:
         assert retry_update.kind == "retry-update" and retry_update.ok
 
 
+class TestBundleDeclaredConcepts:
+    CONCEPTS_BUNDLE = (
+        b"```toml waloader-bundle\n"
+        b"bundle_format = 1\n"
+        b'entrypoint = "app.py"\n'
+        b'dataset_concepts = ["clients", "Bad Name!", "transactions"]\n'
+        b"```\n"
+        b"## file: app.py\n```python\npass\n```\n"
+    )
+
+    def test_deploy_auto_creates_declared_concepts(
+        self, conn: sqlite3.Connection, fast_config: WALoaderConfig, user: User
+    ) -> None:
+        from waloader.repositories import datasets as datasets_repo
+
+        app, result = deployment.create_app_and_deploy(
+            conn, fast_config, owner=user, name="With Concepts", description="",
+            user_mgmt_enabled=False, bundle_bytes=self.CONCEPTS_BUNDLE, **SEAMS_OK,
+        )
+        assert result.ok, result.error_block()
+        assert datasets_repo.get_concept_by_name(conn, app.id, "clients") is not None
+        assert datasets_repo.get_concept_by_name(conn, app.id, "transactions") is not None
+        step = next(s for s in result.steps if s.name == "dataset concepts")
+        assert step.ok
+        assert "created: clients, transactions" in step.output
+        assert "IGNORED invalid: Bad Name!" in step.output  # warns, never fails
+
+    def test_redeploy_reports_existing_concepts(
+        self, conn: sqlite3.Connection, fast_config: WALoaderConfig, user: User
+    ) -> None:
+        app, first = deployment.create_app_and_deploy(
+            conn, fast_config, owner=user, name="Re Concepts", description="",
+            user_mgmt_enabled=False, bundle_bytes=self.CONCEPTS_BUNDLE, **SEAMS_OK,
+        )
+        assert first.ok
+        again = deployment.redeploy(
+            conn, fast_config, apps_repo.get(conn, app.id), self.CONCEPTS_BUNDLE,
+            actor_id=user.id, **SEAMS_OK,
+        )
+        assert again.ok
+        step = next(s for s in again.steps if s.name == "dataset concepts")
+        assert "already defined: clients, transactions" in step.output
+
+
 class TestCaddyIntegrationPoints:
     def test_route_recorded_when_enabled(self, conn: sqlite3.Connection,
                                          tmp_path: Path, user: User) -> None:

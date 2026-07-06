@@ -110,6 +110,30 @@ class TestDashboard:
         captions = " ".join(c.value for c in at.caption)
         assert "v2" in captions and "port 48123" in captions
 
+    def test_stale_failure_outcome_dropped_after_success(
+        self, seeded_admin, ui_env
+    ) -> None:
+        """Field bug: a failed-create panel kept showing after a later update
+        succeeded. A clean successfully-deployed app must suppress it."""
+        from waloader.ui.common import SESSION_DEPLOY_OUTCOME
+
+        conn, admin = seeded_admin
+        app = apps_repo.create(conn, owner_id=admin.id, name="Healed", slug="healed")
+        apps_repo.set_current_version(conn, app.id, 1)  # a success happened
+        apps_repo.set_state(conn, app.id, "stopped")
+        conn.commit()  # last_deploy_error is None (cleared by the success)
+
+        at = _run_app({
+            SESSION_USER_KEY: admin.id,
+            SESSION_DEPLOY_OUTCOME: {
+                "ok": False, "app_id": app.id, "app_name": "Healed",
+                "kind": "create", "url": None,
+                "error_block": "OLD ERROR", "error_summary": "old",
+            },
+        })
+        assert not any("OLD ERROR" in e.value for e in at.error)
+        assert SESSION_DEPLOY_OUTCOME not in at.session_state
+
     def test_dead_running_app_reconciled_at_boot(self, seeded_admin, ui_env) -> None:
         conn, admin = seeded_admin
         app = apps_repo.create(conn, owner_id=admin.id, name="Zombie", slug="zombie")

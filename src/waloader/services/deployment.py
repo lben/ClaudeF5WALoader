@@ -202,6 +202,34 @@ def deploy_bundle(
     )
     step("create version", True, f"version {version.version_number:06d}")
 
+    # 2b. bundle-declared Dataset Concepts: create the missing ones so the
+    # app shows its "No data uploaded yet" state instead of a missing-concept
+    # error. Bad names warn but never fail the deployment.
+    if parsed.dataset_concepts:
+        from waloader.repositories import datasets as datasets_repo
+        from waloader.services import datasets_service
+
+        created, existing, invalid = [], [], []
+        for name in parsed.dataset_concepts:
+            if datasets_repo.get_concept_by_name(conn, app.id, name) is not None:
+                existing.append(name)
+                continue
+            try:
+                datasets_service.create_concept(
+                    conn, app, name, actor=f"bundle:{app.slug}"
+                )
+                created.append(name)
+            except datasets_service.DatasetError as exc:
+                invalid.append(f"{name} ({exc})")
+        summary = []
+        if created:
+            summary.append(f"created: {', '.join(created)}")
+        if existing:
+            summary.append(f"already defined: {', '.join(existing)}")
+        if invalid:
+            summary.append(f"IGNORED invalid: {'; '.join(invalid)}")
+        step("dataset concepts", True, "; ".join(summary))
+
     # 3. dependency policy -------------------------------------------------
     pyproject = next((f for f in parsed.files if f.path == "pyproject.toml"), None)
     if pyproject is not None:

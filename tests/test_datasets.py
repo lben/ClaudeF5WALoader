@@ -281,12 +281,16 @@ class TestSdk:
         with pytest.raises(DatasetNotUploadedError, match="No data uploaded yet"):
             load_dataset("clients", required=True)
 
-    def test_unknown_concept(self, sdk_env, config, app: App) -> None:
+    def test_unknown_concept_is_soft_by_default(self, sdk_env, config,
+                                                app: App) -> None:
+        """Field lesson: an app whose concept isn't defined yet must show its
+        friendly empty state, not crash — None unless required=True."""
         from waloader_sdk.datasets import UnknownConceptError, load_dataset
 
         self._seed(sdk_env, config, app, with_file=False)
+        assert load_dataset("ghosts") is None
         with pytest.raises(UnknownConceptError, match="not defined"):
-            load_dataset("ghosts")
+            load_dataset("ghosts", required=True)
 
     def test_missing_env_raises_helpfully(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from waloader_sdk.datasets import WALoaderEnvError, load_dataset

@@ -38,11 +38,14 @@ def _user_panel(config, conn, actor, app, app_user) -> None:
             if columns[0].button("Deactivate", key=f"deact_{app_user.id}"):
                 aus.set_app_user_active(conn, app, app_user.id, False,
                                         actor=actor.username)
+                common.flash(f"'{app_user.username}' deactivated — they can no "
+                             "longer log in", icon="⛔")
                 st.rerun()
         else:
             if columns[0].button("Reactivate", key=f"react_{app_user.id}"):
                 aus.set_app_user_active(conn, app, app_user.id, True,
                                         actor=actor.username)
+                common.flash(f"'{app_user.username}' reactivated")
                 st.rerun()
 
         confirm_key = f"confirm_del_auser_{app_user.id}"
@@ -53,6 +56,7 @@ def _user_panel(config, conn, actor, app, app_user) -> None:
                 aus.delete_app_user(conn, config, app, app_user.id,
                                     actor=actor.username)
                 st.session_state.pop(confirm_key, None)
+                common.flash(f"User '{app_user.username}' deleted")
                 st.rerun()
             if columns[2].button("Cancel", key=f"canceldel_{app_user.id}"):
                 st.session_state.pop(confirm_key, None)
@@ -96,6 +100,7 @@ def _user_panel(config, conn, actor, app, app_user) -> None:
             aus.add_attachment(conn, config, app, app_user.id,
                                filename=upload.name, data=upload.getvalue(),
                                note=note, actor=actor.username)
+            common.flash(f"'{upload.name}' attached to '{app_user.username}'")
             st.rerun()
 
 
@@ -108,7 +113,12 @@ def render() -> None:
         if not apps:
             st.info("Create an app first.")
             return
-        app = st.selectbox("App", apps, format_func=lambda a: f"{a.name} ({a.slug})")
+        preselect = st.session_state.pop("preselect_app_slug", None)
+        index = next(
+            (i for i, a in enumerate(apps) if a.slug == preselect), 0
+        ) if preselect else 0
+        app = st.selectbox("App", apps, index=index,
+                           format_func=lambda a: f"{a.name} ({a.slug})")
 
         enabled = st.toggle(
             "Users Management Support",
@@ -140,6 +150,7 @@ def render() -> None:
                         AuthError) as exc:
                     st.error(str(exc))
                 else:
+                    common.flash(f"User '{username}' created for '{app.name}'")
                     st.rerun()
 
         st.subheader("Existing users")

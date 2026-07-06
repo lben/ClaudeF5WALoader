@@ -21,6 +21,28 @@ from waloader.services import deployment, health, reconciliation, users_service
 
 SESSION_USER_KEY = "waloader_user_id"
 SESSION_DEPLOY_OUTCOME = "waloader_deploy_outcome"
+SESSION_FLASH = "waloader_flash_queue"
+
+CLIPBOARD_HINT = (
+    "Copy button doing nothing? Browsers only allow it over HTTPS/localhost — "
+    "on plain HTTP, select the text and press Ctrl+C."
+)
+
+
+def flash(message: str, icon: str = "✅") -> None:
+    """Queue a toast that survives the st.rerun() ending this interaction."""
+    st.session_state.setdefault(SESSION_FLASH, []).append((message, icon))
+
+
+def toast_now(message: str, icon: str = "✅") -> None:
+    """Immediate toast for interactions that do NOT rerun explicitly."""
+    st.toast(message, icon=icon)
+
+
+def show_flashes() -> None:
+    """Render queued toasts; app.py calls this once per run."""
+    for message, icon in st.session_state.pop(SESSION_FLASH, []):
+        st.toast(message, icon=icon)
 
 STATE_BADGES = {
     "created": "⚪ created",
@@ -182,6 +204,19 @@ def render_deploy_outcome(config: WALoaderConfig, user: User) -> None:
     outcome = st.session_state.get(SESSION_DEPLOY_OUTCOME)
     if not outcome:
         return
+    # never show a stale failure: if a NEWER deployment of this app succeeded
+    # (e.g. via the gear's Update code), the panel would contradict reality.
+    # Signal: last_deploy_error is cleared on every successful deploy.
+    with open_conn(config) as check_conn:
+        try:
+            current = apps_repo.get(check_conn, outcome["app_id"])
+        except KeyError:  # app was deleted since
+            st.session_state.pop(SESSION_DEPLOY_OUTCOME, None)
+            return
+        if (not outcome["ok"] and current.last_deploy_error is None
+                and current.current_version is not None):
+            st.session_state.pop(SESSION_DEPLOY_OUTCOME, None)
+            return
     with st.container(border=True):
         if outcome["ok"]:
             st.success(
@@ -202,6 +237,7 @@ def render_deploy_outcome(config: WALoaderConfig, user: User) -> None:
             )
             st.write("Full details (copy this into your coding LLM to get a fix):")
             st.code(outcome["error_block"], language=None)
+            st.caption(CLIPBOARD_HINT)
             fixed = st.file_uploader(
                 "Upload the fixed markdown bundle and retry",
                 type=["md", "txt", "markdown"],
@@ -219,6 +255,11 @@ def render_deploy_outcome(config: WALoaderConfig, user: User) -> None:
                         )
                     app = apps_repo.get(conn, app.id)
                     store_deploy_outcome(app, result, health.app_url(config, app))
+                if result.ok:
+                    from waloader.ui import nav
+
+                    flash(f"'{app.name}' deployed successfully")
+                    nav.switch("dashboard")
                 st.rerun()
             if columns[1].button("Dismiss", key="dismiss_outcome_err"):
                 st.session_state.pop(SESSION_DEPLOY_OUTCOME, None)
