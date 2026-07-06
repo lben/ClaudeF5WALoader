@@ -38,8 +38,10 @@ it prints. Production runbook: `docs/troubleshooting.md`.
 
 ## The user flow
 
-1. A finance user builds a Streamlit app with their coding LLM and asks it for
-   a WALoader bundle (`docs/llm-bundle-prompt.md` is the copy-paste template).
+1. A finance user builds a Streamlit app with their coding LLM — which the
+   operator has primed with the [`authoring_kit/`](authoring_kit/) so it is
+   WALoader-native from the first message (design language, Dataset Concepts,
+   tests, previews, bundle output).
 2. They log into WALoader, hit *Create new app*, pick a name (live
    availability check), upload the bundle, submit.
 3. Success → copyable app URL. Failure → copyable error block to paste back to
@@ -54,7 +56,8 @@ it prints. Production runbook: `docs/troubleshooting.md`.
 |---|---|
 | `docs/configuration.md` | every setting: purpose, default, consequences |
 | `docs/markdown-bundle-contract.md` | the bundle format, exactly |
-| `docs/llm-bundle-prompt.md` | prompt template for coding LLMs |
+| `authoring_kit/` | system prompt + guides that make a coding LLM WALoader-native (operator wires them in; see its README) |
+| `docs/llm-bundle-prompt.md` | fallback prompt for un-primed LLMs (superseded by the kit) |
 | `docs/dataset-concepts-contract.md` | datasets: SDK + mapping screen |
 | `docs/user-management.md` | platform users, app users, crash emails |
 | `docs/dependency-policy.md` | what child apps may depend on; uv/private index |

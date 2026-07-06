@@ -474,3 +474,40 @@
 - **Known issues:** none. PROGRESS.md carries the DoD closure and accepted
   limitations. Tagged v0.2.0.
 - **Next:** none — G02 complete.
+
+## 2026-07-06 — App-creation flow: LLM authoring kit — complete
+
+- **Context:** Follow-up enhancement after G02 (not a new goal phase). Replaces
+  the "prime the LLM at the end" flow with an authoring kit that makes the
+  coding LLM WALoader-native from the first message.
+- **Summary:** New top-level `authoring_kit/` folder (plain repo files — NOT
+  downloadable in the UI; the operator feeds them to their LLM per the user's
+  instruction). Contents: README.md (operator wiring notes — the only file not
+  meant for the LLM), SYSTEM_PROMPT.md (paste into the assistant's system
+  slot: every app is a WALoader Streamlit app, styled per DESIGN_LANGUAGE.md,
+  Dataset-Concept-backed, test-included, single-bundle output, hand-hold
+  non-technical users), 01-building-waloader-apps.md (engineering contract:
+  project shape, the data.py/sample_data.py preview-parity pattern with the
+  waloader_sdk try/except ImportError fallback, Dataset Concepts, mandatory
+  pytest, dependency rules, and the FULL single-markdown bundle format incl.
+  nested-fence rule + path rules, plus hard don'ts), 02-previews.md (cadence:
+  ask once "every change or on request"; the preview ladder — runnable local
+  streamlit > styled mockup > text wireframe — all driven from the real code +
+  sample data so previews match the deploy), 03-help-and-faq.md (capabilities,
+  CANNOT list, limits table, click-by-click tutorial, Q&A for the canonical
+  questions, example prompt templates, tone). DESIGN_LANGUAGE.md is referenced
+  everywhere but NOT shipped (user provides it).
+- **Doc-sync:** tests/test_authoring_kit.py pins kit facts to real defaults
+  (UploadsConfig limits, dataset formats, bundle markers, nested-fence + path
+  rules, SDK/parity pattern, mandatory tests, DESIGN_LANGUAGE references,
+  canonical FAQ questions) — whitespace-normalized so prose wrapping can't
+  break assertions. Changing platform limits or the bundle contract now fails
+  CI until the kit is updated.
+- **Also:** docs/llm-bundle-prompt.md rewritten as a "superseded — see
+  authoring_kit/" fallback for un-primed LLMs; README docs table + user-flow
+  updated to point at the kit.
+- **Validation:** `uv run pytest` → 380 passed (+13); `uv run ruff check .`
+  → clean.
+- **Known issues:** none. DESIGN_LANGUAGE.md must be added to authoring_kit/
+  by the operator before use (the kit instructs the LLM to ask for it if
+  absent).
