@@ -64,6 +64,7 @@ it prints. Production runbook: `docs/troubleshooting.md`.
 | `docs/process-management.md` | lifecycle, health checks, reconciliation |
 | `docs/caddy-reverse-proxy.md` | clean URLs on one port |
 | `docs/backups-and-restore.md` | scoped backups, restore, app export/import, factory reset, machine migration |
+| `docs/deploying-updates.md` | safely updating a running server (no git needed on the box) |
 | `docs/troubleshooting.md` | runbook incl. RHEL deployment |
 | `docs/manual-smoke-checklist.md` | human verification pass |
 
@@ -75,8 +76,9 @@ it prints. Production runbook: `docs/troubleshooting.md`.
 `caddyctl` (generate/validate/start/stop/reload/status), `backupctl`
 (create scoped backups/list/restore/factory-reset), `maintenance`
 (backup-db/cleanup-retention/cleanup-logs/…/run-all), `users`
-(create-admin/list/reset-password). All are thin wrappers over the same
-services the UI uses.
+(create-admin/list/reset-password), `deploy`
+(package/apply/push — safely update a running server, `docs/deploying-updates.md`).
+Most are thin wrappers over the same services the UI uses.
 
 ## Development
 

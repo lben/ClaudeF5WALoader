@@ -1,0 +1,22 @@
+# Deployment target for `python -m waloader.tools.deploy push`.
+#
+# Copy to config/deploy.toml (git-ignored) and fill in your server. All values
+# can also be passed as CLI flags (--host, --remote-dir, ...). Auth uses your
+# system ssh/scp: if you normally type a password to reach the box, you'll be
+# prompted once; if you use a key/agent, it's fully unattended.
+#
+# NEVER commit config/deploy.toml (it names your server, possibly a key path).
+
+[remote]
+host = "bdnyr006x05h5"                       # hostname or IP of the Red Hat box
+user = "bl81398"                             # optional; omit to use ssh defaults
+# port = 22                                  # optional
+# identity_file = "~/.ssh/id_ed25519"        # optional; omit to use agent/password
+
+# Absolute path to the WALoader project directory ON the server (the one that
+# already contains pyproject.toml, config/waloader.toml and data/).
+remote_dir = "/home/bl81398/ClaudeF5WALoader"
+
+# The uv binary on the server. Use an absolute path if a non-interactive ssh
+# session doesn't find `uv` on PATH (e.g. "/home/bl81398/.local/bin/uv").
+uv = "uv"

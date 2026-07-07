@@ -49,3 +49,9 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# deploy.py's `apply` path is intentionally Python 3.6-compatible so stock
+# RHEL python3 can run it standalone on the server; the pyupgrade rules would
+# push 3.7+-only idioms (capture_output, text=) that break that guarantee.
+"src/waloader/tools/deploy.py" = ["UP021", "UP022", "UP030", "UP032"]

@@ -38,6 +38,12 @@ connectivity — with exact failure details per line.
 No code changes are expected between macOS, Windows 11, and RHEL — config
 only. Same suite proof: `uv run pytest && uv run pytest -m "integration or e2e"`.
 
+**Updating that server later** (new WALoader version, no git on the box):
+run `python -m waloader.tools.deploy push` from your dev machine — it ships
+only git-tracked code, preserves `data/` and `config/waloader.toml`, cleans
+up files deleted between versions, then runs `uv sync` + migrations +
+restarts the daemon. Full guide: `docs/deploying-updates.md`.
+
 ## Common problems
 
 **Deployment failed — dependency installation.** The error block (copy it!)

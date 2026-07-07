@@ -2,6 +2,8 @@
 data/
 private/
 config/waloader.toml
+config/deploy.toml
+.deploy/
 
 # Python
 __pycache__/

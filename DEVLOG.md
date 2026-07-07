@@ -560,3 +560,41 @@
   the updated sample bundle: auto-created concept + auth gate live); caddy 3
   passed; ruff clean.
 - **Known issues:** none.
+
+## 2026-07-06 — Operator tool: safe remote update (deploy push)
+
+- **Context:** Follow-up after the RHEL rollout. The box has no git; the user
+  was doing git-pull-on-Windows → zip → scp → unzip, which is unsafe (can
+  clobber config, never removes deleted files, forgets uv sync/restart).
+  Requested a one-command safe updater; chose "push over SSH, fully
+  automatic".
+- **Summary:** New src/waloader/tools/deploy.py (package / apply / push),
+  stdlib-only and dependency-free (shells out to system ssh/scp, so existing
+  password/key auth just works — deliberately NOT Fabric/paramiko). Safety
+  model: payload = git-tracked files only (git ls-files), so git-ignored
+  data/ + config/waloader.toml + .venv are inherently excluded; a hardcoded
+  PROTECTED denylist refuses to overwrite OR delete them even if force-added
+  to git; files removed between versions are cleaned via a per-deploy
+  .deploy/manifest.json diff (never protected); apply refuses a non-install
+  target (no pyproject.toml) and aborts on missing sentinels (empty/garbage
+  payload guard); zip-slip guard on extract; --dry-run on push and apply.
+  push: package here → scp tarball + the apply script → remote
+  `python3 deploy.py apply` (login shell) → uv sync → db migrate → restart
+  the serve daemon (child apps keep running). The apply path is Python
+  3.6-compatible so stock RHEL python3 runs it standalone (documented ruff
+  per-file-ignore for the pyupgrade rules that would force 3.7+ idioms).
+  config/deploy.example.toml (+ config/deploy.toml git-ignored) holds the
+  connection; all values also available as CLI flags.
+- **Tests:** tests/test_deploy.py — protection/denylist, safe_target
+  traversal, git payload excludes runtime state (incl. the force-added case),
+  no-git walk, manifest-diff deletions never include protected, full
+  package→apply round trip proving runtime state preserved across two updates
+  + stale-file cleanup, non-install-target refusal, missing-sentinel abort,
+  dry-run no-op, push --dry-run needs no ssh + required-field validation.
+  Real smoke: packaging THIS repo yields 148 files, MANIFEST present, ships
+  the example config, and leaks zero data//config/.venv files.
+- **Docs:** docs/deploying-updates.md (why-not-unzip, setup, push, manual
+  package+apply, safety guarantees); README docs table + CLI list;
+  troubleshooting RHEL runbook cross-link.
+- **Validation:** unit 412 passed (+13); ruff clean; deploy.py parses and has
+  no walrus/match/capture_output/text= (3.6-safe).
