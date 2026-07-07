@@ -628,3 +628,31 @@
   scp-uses-bare-filenames regression, custom ssh/scp binaries respected).
 - **Validation:** unit 416 passed (+4); ruff clean; self-package still ships
   deploy.py + example config with zero data//config leaks.
+
+## 2026-07-06 — deploy: corporate-index uv env + venv-python restart
+
+- **Bug (field, corporate RHEL):** push connected but apply's `uv sync` /
+  `uv run` hit pypi.org and DNS-failed ("Name or service not known",
+  "Failed to fetch hatchling") — the box is behind a private index and apply
+  ran uv WITHOUT the UV_CONFIG_FILE/UV_SYSTEM_CERTS env WALoader uses for
+  child-app installs. Also `uv run ... serve --stop` triggered a full project
+  rebuild before doing anything, compounding the failure.
+- **Fix:** apply now (1) auto-reads the box's own config/waloader.toml [uv]
+  section (minimal 3.6-safe parser; reads waloader.toml only, never the uv
+  config file's contents) and exports UV_CONFIG_FILE / UV_SYSTEM_CERTS /
+  SSL_CERT_FILE / SSL_CERT_DIR for `uv sync` — so if child-app deploys work on
+  the box, updates work with zero extra config; (2) runs stop/migrate/daemon
+  via the venv python directly (<root>/.venv/bin/python -m waloader.tools.*)
+  instead of `uv run`, so they never rebuild; (3) `_run` catches OSError so a
+  missing uv is a clean failed step, not a traceback. New `[remote.env]`
+  (deploy.toml) + `--env KEY=VALUE` (apply/push) override/extend the derived
+  env; explicit wins over auto-read.
+- **Example/docs:** deploy.example.toml gained [remote.env] guidance + Cmder
+  ssh/scp path example; deploying-updates.md gained "corporate/offline server"
+  and Cmder sections and the "set uv to an absolute path" note. Answers the
+  user's question: usually you need NOT re-specify Linux paths (auto-read),
+  but set `uv` absolute path and optionally [remote.env] if needed.
+- **Tests:** +3 (auto-read [uv] parsing incl. inline-comment stripping;
+  ignores other sections/missing; uv sync gets derived env with --env
+  override winning; push forwards [remote.env] into the remote apply command).
+- **Validation:** unit 419 passed (+3); ruff clean.

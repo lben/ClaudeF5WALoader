@@ -231,6 +231,65 @@ class TestPushDryRun:
             deploy.push(source, {"host": "box"}, use_git=False, dry_run=True)
 
 
+class TestUvEnvironment:
+    def test_auto_reads_uv_config_from_waloader_toml(self, tmp_path: Path) -> None:
+        (tmp_path / "config").mkdir()
+        (tmp_path / "config" / "waloader.toml").write_text(
+            "[paths]\ndata_dir = 'data'\n"
+            "[uv]\n"
+            'config_file = "/home/bl/uv.toml"   # corporate index\n'
+            "system_certs = true\n"
+            'ssl_cert_file = "/etc/pki/ca.crt"\n',
+            encoding="utf-8",
+        )
+        env = deploy._auto_uv_env(tmp_path)
+        assert env["UV_CONFIG_FILE"] == "/home/bl/uv.toml"  # comment stripped
+        assert env["UV_SYSTEM_CERTS"] == "true"
+        assert env["SSL_CERT_FILE"] == "/etc/pki/ca.crt"
+
+    def test_auto_env_ignores_other_sections_and_missing(self, tmp_path: Path) -> None:
+        assert deploy._auto_uv_env(tmp_path) == {}  # no config file
+        (tmp_path / "config").mkdir()
+        (tmp_path / "config" / "waloader.toml").write_text(
+            "[executables]\nconfig_file = '/not/uv'\n", encoding="utf-8"
+        )
+        assert deploy._auto_uv_env(tmp_path) == {}  # config_file not under [uv]
+
+    def test_uv_sync_runs_with_derived_env_and_override_wins(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        root = tmp_path / "server"
+        _make_install(root, with_runtime=True)
+        (root / "config" / "waloader.toml").write_text(
+            "[uv]\nconfig_file = '/box/uv.toml'\nsystem_certs = true\n",
+            encoding="utf-8",
+        )
+        seen = {}
+
+        def fake_run(cmd, cwd=None, env=None, **kw):
+            if cmd[:2] == ["uv", "sync"]:
+                seen["env"] = env
+            class _R:
+                returncode = 0
+                stdout = ""
+            return _R()
+
+        monkeypatch.setattr(deploy.subprocess, "run", fake_run)
+        # a payload to apply
+        source = tmp_path / "s"
+        _make_install(source, with_runtime=False)
+        pkg = tmp_path / "p.tar.gz"
+        deploy.create_package(source, pkg, use_git=False)
+
+        deploy.apply_package(
+            root, pkg, uv="uv",
+            env_overrides={"UV_CONFIG_FILE": "/override/uv.toml"},
+            run_uv=True, run_migrate=False, restart=False,
+        )
+        assert seen["env"]["UV_CONFIG_FILE"] == "/override/uv.toml"  # override wins
+        assert seen["env"]["UV_SYSTEM_CERTS"] == "true"              # auto-derived
+
+
 class TestPushBinaries:
     def test_missing_ssh_gives_actionable_error(
         self, tmp_path: Path, monkeypatch
@@ -268,10 +327,18 @@ class TestPushBinaries:
         monkeypatch.setattr(deploy.shutil, "which", lambda name: "/usr/bin/" + name)
 
         rc = deploy.push(
-            source, {"host": "box", "remote_dir": "/srv/waloader", "uv": "uv"},
+            source,
+            {"host": "box", "remote_dir": "/srv/waloader", "uv": "uv",
+             "env": {"UV_CONFIG_FILE": "/box/uv.toml", "UV_SYSTEM_CERTS": "true"}},
             use_git=False,
         )
         assert rc == 0
+        # the remote apply command must carry the env overrides
+        apply_calls = [c for c in calls if "bash -lc" in " ".join(c[0])]
+        assert apply_calls
+        joined = " ".join(apply_calls[0][0])
+        assert "UV_CONFIG_FILE=/box/uv.toml" in joined
+        assert "UV_SYSTEM_CERTS=true" in joined
         scp_calls = [c for c in calls if c[0][0].endswith("scp")]
         assert len(scp_calls) == 1
         argv, cwd = scp_calls[0]

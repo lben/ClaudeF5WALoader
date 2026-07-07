@@ -205,6 +205,7 @@ def apply_package(
     tarball: Path,
     *,
     uv: str = "uv",
+    env_overrides: dict | None = None,
     dry_run: bool = False,
     run_uv: bool = True,
     run_migrate: bool = True,
@@ -274,7 +275,8 @@ def apply_package(
         shutil.rmtree(str(staging), ignore_errors=True)
 
     # 4. dependencies, migrations, restart
-    report["steps"] = _finalize(root, uv, run_uv, run_migrate, restart)
+    report["steps"] = _finalize(root, uv, env_overrides, run_uv, run_migrate,
+                                restart)
     return report
 
 
@@ -291,37 +293,90 @@ def _prune_empty_dirs(directory: Path, root: Path) -> None:
         current = current.parent
 
 
-def _run(cmd: list, cwd: Path) -> tuple:
-    proc = subprocess.run(
-        cmd, cwd=str(cwd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        universal_newlines=True,
-    )
+def _venv_python(root: Path) -> Path:
+    if os.name == "nt":  # a Windows server is unusual but be correct
+        return root / ".venv" / "Scripts" / "python.exe"
+    return root / ".venv" / "bin" / "python"
+
+
+def _auto_uv_env(root: Path) -> dict:
+    """Reuse WALoader's own [uv] settings from config/waloader.toml so `uv sync`
+    reaches the same (corporate) package index the child-app deploys use.
+
+    Reads only waloader.toml (allowed) to learn the PATH of the uv config file
+    — it never opens the uv config file's contents. Minimal parser so it runs
+    on stock RHEL python3 (no tomllib).
+    """
+    conf = root / "config" / "waloader.toml"
+    env: dict = {}
+    if not conf.is_file():
+        return env
+    try:
+        section = None
+        for raw in conf.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("[") and line.endswith("]"):
+                section = line[1:-1].strip()
+                continue
+            if section != "uv" or "=" not in line:
+                continue
+            key, _, val = line.partition("=")
+            key = key.strip()
+            val = val.split("#", 1)[0].strip().strip('"').strip("'")
+            if key == "config_file" and val:
+                env["UV_CONFIG_FILE"] = val
+            elif key == "system_certs" and val.lower() == "true":
+                env["UV_SYSTEM_CERTS"] = "true"
+            elif key == "ssl_cert_file" and val:
+                env["SSL_CERT_FILE"] = val
+            elif key == "ssl_cert_dir" and val:
+                env["SSL_CERT_DIR"] = val
+    except OSError:
+        return {}
+    return env
+
+
+def _run(cmd: list, cwd: Path, env: dict | None = None) -> tuple:
+    try:
+        proc = subprocess.run(
+            cmd, cwd=str(cwd), env=env, stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT, universal_newlines=True,
+        )
+    except OSError as exc:
+        return 127, "could not run {0}: {1}".format(cmd[0], exc)
     return proc.returncode, (proc.stdout or "").strip()
 
 
-def _finalize(root: Path, uv: str, run_uv: bool, run_migrate: bool,
-              restart: bool) -> list:
+def _finalize(root: Path, uv: str, env_overrides, run_uv: bool,
+              run_migrate: bool, restart: bool) -> list:
+    env = dict(os.environ)
+    env.update(_auto_uv_env(root))          # WALoader's own [uv] config
+    env.update(env_overrides or {})         # explicit --env wins
     steps = []
 
     def do(label, cmd):
-        rc, out = _run(cmd, root)
+        rc, out = _run(cmd, root, env)
         steps.append({"step": label, "ok": rc == 0, "output": out})
         return rc == 0
 
-    if restart:
-        do("stop daemon", [uv, "run", "python", "-m", "waloader.tools.serve",
-                           "--stop"])
+    # stop the OLD daemon first (using the current venv), then sync/migrate,
+    # then start the NEW one. Tool commands run the venv python directly so
+    # they never trigger a `uv run` rebuild that needs the index.
+    venv = _venv_python(root)
+    if restart and venv.exists():
+        do("stop daemon", [str(venv), "-m", "waloader.tools.serve", "--stop"])
     if run_uv:
         if not do("uv sync", [uv, "sync"]):
             steps.append({"step": "ABORTED", "ok": False,
                           "output": "uv sync failed — not restarting"})
             return steps
-    if run_migrate:
-        do("db migrate", [uv, "run", "python", "-m", "waloader.tools.db",
-                          "migrate"])
-    if restart:
-        do("start daemon", [uv, "run", "python", "-m", "waloader.tools.serve",
-                            "--daemon"])
+    venv = _venv_python(root)  # exists after a successful sync
+    if run_migrate and venv.exists():
+        do("db migrate", [str(venv), "-m", "waloader.tools.db", "migrate"])
+    if restart and venv.exists():
+        do("start daemon", [str(venv), "-m", "waloader.tools.serve", "--daemon"])
     return steps
 
 
@@ -416,6 +471,10 @@ def push(root: Path, conn: dict, *, use_git: bool = True, restart: bool = True,
 
     # remote commands are quoted for the REMOTE shell (bash on the server).
     # apply is wrapped in `bash -lc` so the login PATH finds uv.
+    env_map = dict(conn.get("env", {}) or {})
+    env_flags = []
+    for key, value in env_map.items():
+        env_flags += ["--env", shlex.quote("{0}={1}".format(key, value))]
     apply_inner = " ".join([
         shlex.quote(remote_python),
         shlex.quote(staging + "/deploy.py"), "apply",
@@ -423,7 +482,7 @@ def push(root: Path, conn: dict, *, use_git: bool = True, restart: bool = True,
         "--root", shlex.quote(remote_dir),
         "--uv", shlex.quote(uv),
         "--restart" if restart else "--no-restart",
-    ] + ([] if run_migrate else ["--no-migrate"]))
+    ] + ([] if run_migrate else ["--no-migrate"]) + env_flags)
     remote_mkdir = "mkdir -p " + shlex.quote(staging)
     remote_apply = "bash -lc " + shlex.quote(apply_inner)
 
@@ -495,6 +554,8 @@ def main(argv: list | None = None) -> int:
     app.add_argument("tarball")
     app.add_argument("--root", default=".")
     app.add_argument("--uv", default="uv")
+    app.add_argument("--env", action="append", default=[], metavar="KEY=VALUE",
+                     help="env var for uv (repeatable); e.g. --env UV_CONFIG_FILE=/p/uv.toml")
     app.add_argument("--dry-run", action="store_true")
     app.add_argument("--no-uv", action="store_true")
     app.add_argument("--no-migrate", action="store_true")
@@ -537,8 +598,17 @@ def main(argv: list | None = None) -> int:
             return 0
 
         if args.command == "apply":
+            env_overrides = {}
+            for item in args.env:
+                if "=" not in item:
+                    print("deploy error: --env must be KEY=VALUE, got {0}".format(
+                        item), file=sys.stderr)
+                    return 2
+                key, _, value = item.partition("=")
+                env_overrides[key.strip()] = value
             report = apply_package(
-                root, Path(args.tarball), uv=args.uv, dry_run=args.dry_run,
+                root, Path(args.tarball), uv=args.uv,
+                env_overrides=env_overrides, dry_run=args.dry_run,
                 run_uv=not args.no_uv, run_migrate=not args.no_migrate,
                 restart=args.restart,
             )

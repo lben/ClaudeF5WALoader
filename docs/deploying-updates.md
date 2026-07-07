@@ -56,18 +56,44 @@ foreground one yourself, or switch to `serve --daemon`
 ### Windows: "ssh not found" / crashes on push
 
 `push` uses your system `ssh`/`scp`. If your Python can't see them (common
-when you reach the box via Git Bash or PuTTY rather than Windows OpenSSH),
-push now stops with a clear message. Either install the OpenSSH client
-(Settings → Apps → Optional Features → OpenSSH Client) or point deploy at an
-existing client in `config/deploy.toml`:
+when you reach the box via **Cmder**, Git Bash, or PuTTY rather than Windows
+OpenSSH), push stops with a clear message. Point deploy at the client you
+already use — for Cmder/Git-for-Windows, its bundled `ssh.exe`/`scp.exe`:
 
 ```toml
-ssh = "C:/Program Files/Git/usr/bin/ssh.exe"
-scp = "C:/Program Files/Git/usr/bin/scp.exe"
+# config/deploy.toml
+ssh = "C:/Users/you/tools/cmder/vendor/git-for-windows/usr/bin/ssh.exe"
+scp = "C:/Users/you/tools/cmder/vendor/git-for-windows/usr/bin/scp.exe"
 ```
 
-(Or skip push and use the manual **package + apply** flow below — it needs no
-SSH automation.)
+(Or install the Windows OpenSSH client, or skip push and use the manual
+**package + apply** flow below — it needs no SSH automation.)
+
+### Corporate / offline server: `uv sync` must use your private index
+
+On a locked-down box `uv sync` must reach your **private package index**, not
+`pypi.org` — otherwise it fails with `Name or service not known` /
+`Failed to fetch hatchling`. deploy handles this automatically: on the server
+it **reads the box's own `config/waloader.toml` `[uv]` settings**
+(`config_file`, `system_certs`, `ssl_cert_file`) and sets the matching
+`UV_CONFIG_FILE` / `UV_SYSTEM_CERTS` / `SSL_CERT_FILE` for `uv sync`. So if
+your child-app deployments already work on that box, updates work with no
+extra config.
+
+If you need to override or add variables (or the box's config doesn't cover
+it), set them in `config/deploy.toml`:
+
+```toml
+[remote.env]
+UV_CONFIG_FILE = "/home/you/uv.toml"
+UV_SYSTEM_CERTS = "true"
+```
+
+Also make sure deploy can find `uv` on the server: if a non-interactive ssh
+session doesn't have it on PATH, set the absolute path —
+`uv = "/home/you/.local/bin/uv"`. The Python binary and per-app uv settings
+that WALoader uses to build *child apps* come from the server's
+`config/waloader.toml` as before; deploy doesn't change them.
 
 ## Server-side apply (if you prefer manual scp)
 

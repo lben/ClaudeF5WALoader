@@ -22,8 +22,21 @@ remote_dir = "/home/your-username/waloader"
 uv = "uv"
 
 # Local ssh/scp binaries. Leave unset to use the OpenSSH client on your PATH.
-# On Windows without OpenSSH, point these at another client, e.g. Git for Windows:
-#   ssh = "C:/Program Files/Git/usr/bin/ssh.exe"
-#   scp = "C:/Program Files/Git/usr/bin/scp.exe"
+# On Windows without OpenSSH (e.g. you scp from Cmder/Git Bash), point these at
+# that client's binaries — deploy calls them directly:
+#   ssh = "C:/Users/you/tools/cmder/vendor/git-for-windows/usr/bin/ssh.exe"
+#   scp = "C:/Users/you/tools/cmder/vendor/git-for-windows/usr/bin/scp.exe"
 # ssh = "ssh"
 # scp = "scp"
+
+# Corporate/offline server: `uv sync` needs to reach your private package index,
+# not pypi.org. By default deploy AUTO-READS the box's own config/waloader.toml
+# [uv] settings (config_file, system_certs, ssl_cert_file), so if child-app
+# deploys already work on the box, this Just Works and you need nothing here.
+#
+# Only set these to OVERRIDE or if that auto-read isn't enough. They are set as
+# environment variables for `uv sync` on the server:
+# [remote.env]
+# UV_CONFIG_FILE = "/home/you/uv.toml"     # path to the corporate uv config
+# UV_SYSTEM_CERTS = "true"                  # trust the OS cert store
+# SSL_CERT_FILE = "/etc/pki/tls/certs/ca-bundle.crt"
