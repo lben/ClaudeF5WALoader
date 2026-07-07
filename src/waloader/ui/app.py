@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import streamlit as st
 
-import waloader
 from waloader.services import authorization
 from waloader.ui import (
     common,
@@ -30,9 +29,10 @@ _user = common.require_user(_config)
 with st.sidebar:
     st.markdown(f"**WALoader** · {_user.username}"
                 + (" *(admin)*" if _user.is_admin else ""))
-    st.caption(f"platform v{waloader.__version__}")
     if st.button("Log out", key="sidebar_logout"):
         common.logout()
+
+common.render_build_badge()  # subtle per-deploy build id, bottom-right
 
 _sections: dict[str, list[st.Page]] = {
     "Apps": [

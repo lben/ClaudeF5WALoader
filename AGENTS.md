@@ -129,6 +129,22 @@ test automation.
 
 - Every phase adds/updates tests for the service-layer behavior it implements — tests
   are not deferred to the end.
+- **Human-flow tests are mandatory, not optional.** Service-layer tests are necessary
+  but not sufficient: they pass while real screens stay broken (this happened — a
+  dialog closed on click, a toggle did nothing, yet every unit test was green). For
+  every user-facing flow there MUST be a test that reproduces what a human actually
+  does — navigate to the screen, click the button, submit the form, open the dialog —
+  and asserts what a human expects to see at each step (the confirmation appears, the
+  success/error message shows, the next screen is correct, the disabled state is
+  right). Use Streamlit's `AppTest` to drive pages and widgets. When `AppTest` cannot
+  model an interaction (e.g. a dialog persisting across a fragment rerun), split the
+  flow into the testable halves AND add a guard at the seam (extract the handler and
+  assert its behavior, e.g. that it uses a fragment-scoped rerun), and verify the
+  whole flow once in a real browser. A feature is not done until its human flow has
+  such a test. If a usability bug is found in the field, first add the failing
+  human-flow test that reproduces it, then fix it.
+- The app must *behave* and offer a flow that makes sense; the tests exist to
+  guarantee that, not merely to exercise functions.
 - Default suite must pass **offline**. Mark network/binary-dependent tests:
   `integration` (needs uv/network), `e2e` (real deployment), `caddy` (needs a Caddy
   binary); they must self-skip with a clear reason when prerequisites are missing.

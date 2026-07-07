@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 from streamlit.testing.v1 import AppTest
 
+import waloader
 from waloader import db as wdb
 from waloader.config import load_config
 from waloader.repositories import apps as apps_repo
@@ -172,6 +173,64 @@ class TestLoginNotEnforcedWarning:
         at = _run(admin.id)
         captions = " ".join(c.value for c in at.caption)
         assert "login ON but not enforced" not in captions
+
+
+class TestBuildBadge:
+    def test_build_info_reads_deploy_manifest(self, monkeypatch, tmp_path) -> None:
+        """A deployed box (no git) shows the version+SHA+date baked into
+        .deploy/manifest.json by the deploy tool."""
+        from waloader.ui import common
+
+        (tmp_path / ".deploy").mkdir()
+        (tmp_path / ".deploy" / "manifest.json").write_text(
+            '{"waloader_version": "1.2.3", "git_sha": "abc1234", '
+            '"created_at": "2026-07-07T10:00:00Z"}',
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(common, "_project_root", lambda: tmp_path)
+        info = common.build_info()
+        assert "abc1234" in info and "2026-07-07" in info
+
+    def test_build_info_falls_back_to_live_git(self, monkeypatch, tmp_path) -> None:
+        from waloader.ui import common
+
+        monkeypatch.setattr(common, "_project_root", lambda: tmp_path)  # no manifest
+
+        class _R:
+            returncode = 0
+            stdout = "deadbee\n"
+
+        monkeypatch.setattr(common.subprocess, "run", lambda *a, **k: _R())
+        info = common.build_info()
+        assert "deadbee-dev" in info
+
+    def test_build_info_version_only_last_resort(self, monkeypatch, tmp_path) -> None:
+        from waloader.ui import common
+
+        monkeypatch.setattr(common, "_project_root", lambda: tmp_path)
+
+        def boom(*a, **k):
+            raise OSError("no git")
+
+        monkeypatch.setattr(common.subprocess, "run", boom)
+        assert common.build_info() == f"v{waloader.__version__}"
+
+    def test_render_build_badge_emits_fixed_corner_markup(self) -> None:
+        def script() -> None:
+            from waloader.ui import common
+
+            common.render_build_badge()
+
+        at = AppTest.from_function(script, default_timeout=15).run()
+        body = " ".join(m.value for m in at.markdown)
+        assert "position:fixed" in body and "bottom:6px" in body
+        assert f"v{waloader.__version__}" in body
+
+    def test_app_entrypoint_renders_the_badge(self) -> None:
+        # guard that the entrypoint actually calls it (unit test can't run the
+        # full navigation app cleanly)
+        source = Path("src/waloader/ui/app.py").read_text(encoding="utf-8")
+        assert "render_build_badge()" in source
 
 
 class TestGearAlignment:

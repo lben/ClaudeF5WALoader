@@ -74,6 +74,12 @@ Setup: `uv run python -m waloader.tools.doctor` → all green →
       restarting serve lands on first-run setup; `backupctl restore` +
       `appctl rebuild --all` brings everything back.
 
+## After an update / deploy
+- [ ] The build badge in the bottom-right corner shows the expected
+      `vX.Y.Z · <git-sha> · <date>` (the SHA/date change on every deploy — an
+      at-a-glance confirmation the new build is live).
+- [ ] `serve --status` reports running; `doctor` all green.
+
 ## CLIs (spot check)
 - [ ] `appctl list/status/logs` sensible; `doctor` all green;
       `maintenance run-all` prints a summary (incl. factory-backup pruning);

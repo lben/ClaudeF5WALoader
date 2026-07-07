@@ -716,3 +716,37 @@
   the flow is tested in two halves + the helper-level scope guard.
 - **Validation:** unit 433 passed (+14); e2e 4 passed; ruff clean; all three
   fixes confirmed in a real browser via the preview harness.
+
+## 2026-07-07 — Field round 3: build badge, gear H-centering, human-flow test mandate
+
+- **Gear horizontal centering (the real complaint):** last round I fixed
+  vertical centering but the glyph was left-hugging its button. Added
+  use_container_width=True so the button fills its column and its centered
+  label centers horizontally. Verified live: glyph center-x == button
+  center-x (204 == 204).
+- **Per-deploy build badge:** subtle gray, fixed bottom-right corner, shows
+  `vX.Y.Z · <git-sha> · <date>` so every deploy is visibly distinguishable
+  (the SHA/date change per push even when the semantic version doesn't). The
+  deploy tool now bakes git_sha + created_at into .deploy/manifest.json at
+  package time (the box has no git); common.build_info() reads that on a
+  deployed box, or falls back to live git in dev ("<sha>-dev"), or version
+  only. Replaced the sidebar version caption. Verified live: badge reads
+  "v0.1.0 · 06119cf-dev", color gray, fixed bottom:6/right:12.
+- **require_login mandate:** confirmed the kit already requires calling
+  require_login() in EVERY app (§5) and the sample bundle has it, so
+  kit-generated apps always honor the toggle; the "login not enforced"
+  warning remains only as a detector for pre-kit apps (regenerate → Update
+  code fixes them). No kit change needed.
+- **AGENTS.md — human-flow tests are now mandatory:** added a rule that
+  service-layer tests are necessary but insufficient (they were green while a
+  dialog closed on click and a toggle did nothing); every user-facing flow
+  must have a test that reproduces the human's clicks and asserts what a
+  human expects at each step (AppTest), with a seam-guard + one real-browser
+  check when AppTest can't model an interaction; field bugs get a failing
+  human-flow test first, then the fix.
+- **Tests (+7):** build_manifest carries git_sha; _git_sha empty without git;
+  build_info reads manifest / live-git fallback / version-only; badge markup
+  emitted; entrypoint calls the badge. Deploy fake-run stubs updated for the
+  new git probe.
+- **Validation:** unit 440 passed; ruff clean; gear centering + badge
+  confirmed in a real browser via the preview harness.

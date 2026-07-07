@@ -6,11 +6,15 @@ Connections are opened per action (SQLite + WAL handles multi-thread reruns).
 
 from __future__ import annotations
 
+import json
 import sqlite3
+import subprocess
 from contextlib import contextmanager
+from pathlib import Path
 
 import streamlit as st
 
+import waloader
 from waloader import db
 from waloader.config import WALoaderConfig, apply_db_overrides, load_config
 from waloader.models import App, User
@@ -27,6 +31,55 @@ CLIPBOARD_HINT = (
     "Copy button doing nothing? Browsers only allow it over HTTPS/localhost — "
     "on plain HTTP, select the text and press Ctrl+C."
 )
+
+
+def _project_root() -> Path:
+    """Repo root at runtime (src/waloader/__init__.py -> parents[2])."""
+    return Path(waloader.__file__).resolve().parents[2]
+
+
+def build_info() -> str:
+    """A per-deploy build identifier: version + git SHA + date.
+
+    Deployed boxes have no git, so the deploy tool bakes git_sha + created_at
+    into .deploy/manifest.json — read that first. In dev, fall back to live
+    git. Either way the string changes on every commit/deploy.
+    """
+    version = waloader.__version__
+    root = _project_root()
+    manifest = root / ".deploy" / "manifest.json"
+    if manifest.is_file():
+        try:
+            data = json.loads(manifest.read_text(encoding="utf-8"))
+            parts = [f"v{version}"]
+            if data.get("git_sha"):
+                parts.append(data["git_sha"])
+            if data.get("created_at"):
+                parts.append(str(data["created_at"])[:10])
+            return " · ".join(parts)
+        except (ValueError, OSError):
+            pass
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "--short", "HEAD"],
+            capture_output=True, text=True,
+        )
+        if out.returncode == 0 and out.stdout.strip():
+            return f"v{version} · {out.stdout.strip()}-dev"
+    except OSError:
+        pass
+    return f"v{version}"
+
+
+def render_build_badge() -> None:
+    """Subtle, legible build id fixed to the bottom-right corner."""
+    st.markdown(
+        '<div style="position:fixed;bottom:6px;right:12px;z-index:1000;'
+        'pointer-events:none;color:#7a7f87;font-size:11px;'
+        'font-family:ui-monospace,SFMono-Regular,Menlo,monospace">'
+        f'{build_info()}</div>',
+        unsafe_allow_html=True,
+    )
 
 
 def flash(message: str, icon: str = "✅") -> None:

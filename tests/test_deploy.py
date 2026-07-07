@@ -102,6 +102,25 @@ class TestPayloadSelection:
         assert not any("__pycache__" in f for f in files)
 
 
+class TestBuildManifest:
+    def test_manifest_carries_version_and_git_sha(self, tmp_path: Path) -> None:
+        _make_install(tmp_path, with_runtime=False)
+        _git(tmp_path, "init")
+        _git(tmp_path, "config", "user.email", "t@t.t")
+        _git(tmp_path, "config", "user.name", "t")
+        _git(tmp_path, "add", "-A")
+        _git(tmp_path, "commit", "-m", "c")
+        files = deploy.compute_payload_files(tmp_path, use_git=True)
+        manifest = deploy.build_manifest(tmp_path, files)
+        assert manifest["waloader_version"] == "9.9.9"
+        assert len(manifest["git_sha"]) >= 7  # short SHA present
+        assert manifest["created_at"].endswith("Z")
+
+    def test_git_sha_empty_without_git(self, tmp_path: Path) -> None:
+        _make_install(tmp_path, with_runtime=False)  # not a git repo
+        assert deploy._git_sha(tmp_path) == ""
+
+
 class TestManifestDiff:
     def test_deletions_never_include_protected(self) -> None:
         old = {"files": {"a.py": "1", "old.py": "2", "data/db": "3"}}
@@ -361,8 +380,9 @@ class TestPushBinaries:
 
         class _R:
             returncode = 0
+            stdout = ""  # for the git_sha probe during packaging
 
-        def fake_run(cmd, cwd=None):
+        def fake_run(cmd, cwd=None, **kw):
             calls.append((list(cmd), cwd))
             return _R()
 
@@ -399,9 +419,12 @@ class TestPushBinaries:
 
         class _R:
             returncode = 0
+            stdout = ""
 
-        monkeypatch.setattr(deploy.subprocess, "run",
-                            lambda cmd, cwd=None: calls.append(list(cmd)) or _R())
+        monkeypatch.setattr(
+            deploy.subprocess, "run",
+            lambda cmd, cwd=None, **kw: calls.append(list(cmd)) or _R(),
+        )
         monkeypatch.setattr(deploy.shutil, "which", lambda name: name)
         monkeypatch.setattr(Path, "exists", lambda self: True)
 

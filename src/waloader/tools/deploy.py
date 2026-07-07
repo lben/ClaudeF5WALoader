@@ -118,6 +118,23 @@ def compute_payload_files(root: Path, use_git: bool = True) -> list:
     return files
 
 
+def _git_sha(root: Path) -> str:
+    """Short commit SHA of the source (best-effort; the source machine has git).
+    Baked into the manifest so a deployed box — which has no git — can still
+    show which build it's running."""
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "--short", "HEAD"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            universal_newlines=True,
+        )
+        if out.returncode == 0:
+            return out.stdout.strip()
+    except OSError:
+        pass
+    return ""
+
+
 def build_manifest(root: Path, files: list) -> dict:
     version = ""
     init = root / "src" / "waloader" / "__init__.py"
@@ -128,6 +145,7 @@ def build_manifest(root: Path, files: list) -> dict:
                 break
     return {
         "waloader_version": version,
+        "git_sha": _git_sha(root),
         "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "files": {rel: _sha256(root / rel) for rel in files},
     }

@@ -203,10 +203,12 @@ def _gear_dialog(app_id: int) -> None:
 def _render_card(config, conn, app) -> None:
     with st.container(border=True):
         # top-align so the gear sits next to the first line of the name even
-        # when a long name wraps (center-align left it floating in the gap)
+        # when a long name wraps; use_container_width makes the button fill the
+        # column so its (centered) glyph is horizontally centered, not left-hugging.
         title, gear = st.columns([5, 1], vertical_alignment="top")
         title.markdown(f"**{app.name}**")
-        if gear.button("⚙️", key=f"gear_{app.id}", help="Configure this app"):
+        if gear.button("⚙️", key=f"gear_{app.id}", help="Configure this app",
+                       use_container_width=True):
             _gear_dialog(app.id)
         st.markdown(common.state_badge(app.state))
         details = []
