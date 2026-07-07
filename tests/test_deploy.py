@@ -255,6 +255,49 @@ class TestUvEnvironment:
         )
         assert deploy._auto_uv_env(tmp_path) == {}  # config_file not under [uv]
 
+    def test_auto_reads_uv_binary_from_executables(self, tmp_path: Path) -> None:
+        (tmp_path / "config").mkdir()
+        (tmp_path / "config" / "waloader.toml").write_text(
+            "[executables]\nuv_binary = '/home/bl/.local/bin/uv'\n"
+            "python_binary = '/usr/bin/python3.12'\n",
+            encoding="utf-8",
+        )
+        assert deploy._auto_uv_binary(tmp_path) == "/home/bl/.local/bin/uv"
+        assert deploy._auto_uv_binary(tmp_path / "nope") == ""
+
+    def test_uv_binary_precedence(self, tmp_path: Path, monkeypatch) -> None:
+        root = tmp_path / "server"
+        _make_install(root, with_runtime=True)
+        (root / "config" / "waloader.toml").write_text(
+            "[executables]\nuv_binary = '/box/uv'\n", encoding="utf-8"
+        )
+        source = tmp_path / "s"
+        _make_install(source, with_runtime=False)
+        pkg = tmp_path / "p.tar.gz"
+        deploy.create_package(source, pkg, use_git=False)
+
+        sync_cmd = {}
+
+        def fake_run(cmd, cwd=None, env=None, **kw):
+            if len(cmd) >= 2 and cmd[1] == "sync":
+                sync_cmd["bin"] = cmd[0]
+
+            class _R:
+                returncode = 0
+                stdout = ""
+            return _R()
+
+        monkeypatch.setattr(deploy.subprocess, "run", fake_run)
+
+        # unset -> auto from waloader.toml
+        deploy.apply_package(root, pkg, uv="", run_migrate=False, restart=False)
+        assert sync_cmd["bin"] == "/box/uv"
+
+        # explicit deploy.toml value wins
+        deploy.apply_package(root, pkg, uv="/override/uv", run_migrate=False,
+                             restart=False)
+        assert sync_cmd["bin"] == "/override/uv"
+
     def test_uv_sync_runs_with_derived_env_and_override_wins(
         self, tmp_path: Path, monkeypatch
     ) -> None:

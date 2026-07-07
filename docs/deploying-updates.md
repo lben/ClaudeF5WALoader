@@ -89,11 +89,24 @@ UV_CONFIG_FILE = "/home/you/uv.toml"
 UV_SYSTEM_CERTS = "true"
 ```
 
-Also make sure deploy can find `uv` on the server: if a non-interactive ssh
-session doesn't have it on PATH, set the absolute path —
-`uv = "/home/you/.local/bin/uv"`. The Python binary and per-app uv settings
-that WALoader uses to build *child apps* come from the server's
-`config/waloader.toml` as before; deploy doesn't change them.
+The **server uv binary** is resolved the same way: unset in `deploy.toml` →
+read from the box's `config/waloader.toml` `[executables].uv_binary`, else
+plain `uv` on PATH. Set `uv = "/home/you/.local/bin/uv"` (a **Linux** path)
+only to override, e.g. if a non-interactive ssh session can't find it.
+
+### Which values are local vs. server?
+
+`deploy.toml`'s `[remote]` holds both:
+
+- **Local** (run on your machine): `ssh`, `scp` — your Windows/Cmder client.
+- **Server** (run on the box, Linux paths): `remote_dir`, `uv`,
+  `remote_python`, `[remote.env]`.
+
+The server values all **default to the box's own `config/waloader.toml`** so
+you don't repeat yourself; anything you set in `deploy.toml` **overrides** it.
+The Python binary and per-app uv settings WALoader uses to build *child apps*
+are unchanged — deploy only reuses them to make its own `uv sync` reach your
+index.
 
 ## Server-side apply (if you prefer manual scp)
 

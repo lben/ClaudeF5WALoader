@@ -656,3 +656,26 @@
   ignores other sections/missing; uv sync gets derived env with --env
   override winning; push forwards [remote.env] into the remote apply command).
 - **Validation:** unit 419 passed (+3); ruff clean.
+
+## 2026-07-06 — deploy: uv binary also auto-read from waloader.toml (consistency)
+
+- **Feedback:** user flagged an inconsistency — the uv ENV vars (UV_CONFIG_FILE
+  etc.) auto-read from the box's waloader.toml with deploy.toml override, but
+  the uv BINARY path defaulted to "uv" and had to be repeated in deploy.toml.
+  They wanted the same rule for both: empty in deploy.toml by default (read
+  from waloader.toml), deploy.toml wins if set.
+- **Change:** refactored the minimal waloader.toml reader into
+  _read_waloader_section; uv binary now resolves as deploy.toml `uv`
+  (if set) → waloader.toml [executables].uv_binary → "uv". apply_package uv
+  default is now "" (auto); push omits --uv when unset so the server resolves;
+  CLI --uv default "". The [uv] env auto-read/override already worked and is
+  unchanged. Clarified deploy.example.toml (LOCAL ssh/scp vs SERVER
+  remote_dir/uv/remote_python/[remote.env]; all server values default to the
+  box's waloader.toml, deploy.toml overrides) and the docs.
+- **Answers to the user:** the `uv = "/home/.../uv"` example is the LINUX/box
+  path; no clash — deploy.toml is empty by default and reads from
+  waloader.toml, and if you DO set a value it takes precedence (now true for
+  the uv binary too, not just the env).
+- **Tests:** +2 (auto-read uv_binary from [executables]; precedence: unset →
+  waloader.toml value, set → override wins).
+- **Validation:** unit 421 passed; ruff clean.

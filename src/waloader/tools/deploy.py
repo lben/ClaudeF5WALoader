@@ -204,7 +204,7 @@ def apply_package(
     root: Path,
     tarball: Path,
     *,
-    uv: str = "uv",
+    uv: str = "",
     env_overrides: dict | None = None,
     dry_run: bool = False,
     run_uv: bool = True,
@@ -274,9 +274,12 @@ def apply_package(
     finally:
         shutil.rmtree(str(staging), ignore_errors=True)
 
-    # 4. dependencies, migrations, restart
-    report["steps"] = _finalize(root, uv, env_overrides, run_uv, run_migrate,
-                                restart)
+    # 4. dependencies, migrations, restart. Resolve the server uv binary:
+    #    deploy.toml `uv` (if set) wins, else WALoader's own executables.uv_binary,
+    #    else plain "uv" on PATH.
+    resolved_uv = uv or _auto_uv_binary(root) or "uv"
+    report["steps"] = _finalize(root, resolved_uv, env_overrides, run_uv,
+                                run_migrate, restart)
     return report
 
 
@@ -299,43 +302,53 @@ def _venv_python(root: Path) -> Path:
     return root / ".venv" / "bin" / "python"
 
 
-def _auto_uv_env(root: Path) -> dict:
-    """Reuse WALoader's own [uv] settings from config/waloader.toml so `uv sync`
-    reaches the same (corporate) package index the child-app deploys use.
-
-    Reads only waloader.toml (allowed) to learn the PATH of the uv config file
-    — it never opens the uv config file's contents. Minimal parser so it runs
-    on stock RHEL python3 (no tomllib).
-    """
+def _read_waloader_section(root: Path, section: str) -> dict:
+    """Minimal reader for one [section] of the box's config/waloader.toml
+    (stdlib-only, 3.6-safe — no tomllib). Reads waloader.toml only; never opens
+    the uv config file's contents (that path is treated as protected)."""
     conf = root / "config" / "waloader.toml"
-    env: dict = {}
+    values: dict = {}
     if not conf.is_file():
-        return env
+        return values
     try:
-        section = None
+        current = None
         for raw in conf.read_text(encoding="utf-8").splitlines():
             line = raw.strip()
             if not line or line.startswith("#"):
                 continue
             if line.startswith("[") and line.endswith("]"):
-                section = line[1:-1].strip()
+                current = line[1:-1].strip()
                 continue
-            if section != "uv" or "=" not in line:
+            if current != section or "=" not in line:
                 continue
             key, _, val = line.partition("=")
-            key = key.strip()
-            val = val.split("#", 1)[0].strip().strip('"').strip("'")
-            if key == "config_file" and val:
-                env["UV_CONFIG_FILE"] = val
-            elif key == "system_certs" and val.lower() == "true":
-                env["UV_SYSTEM_CERTS"] = "true"
-            elif key == "ssl_cert_file" and val:
-                env["SSL_CERT_FILE"] = val
-            elif key == "ssl_cert_dir" and val:
-                env["SSL_CERT_DIR"] = val
+            values[key.strip()] = val.split("#", 1)[0].strip().strip('"').strip("'")
     except OSError:
         return {}
+    return values
+
+
+def _auto_uv_env(root: Path) -> dict:
+    """Reuse WALoader's own [uv] settings so `uv sync` reaches the same
+    (corporate) package index the child-app deploys use. Overridable via
+    [remote.env] / --env, which take precedence."""
+    uv = _read_waloader_section(root, "uv")
+    env: dict = {}
+    if uv.get("config_file"):
+        env["UV_CONFIG_FILE"] = uv["config_file"]
+    if uv.get("system_certs", "").lower() == "true":
+        env["UV_SYSTEM_CERTS"] = "true"
+    if uv.get("ssl_cert_file"):
+        env["SSL_CERT_FILE"] = uv["ssl_cert_file"]
+    if uv.get("ssl_cert_dir"):
+        env["SSL_CERT_DIR"] = uv["ssl_cert_dir"]
     return env
+
+
+def _auto_uv_binary(root: Path) -> str:
+    """The server uv binary from WALoader's own [executables].uv_binary, so
+    deploy.toml doesn't have to repeat it. deploy.toml's `uv` overrides."""
+    return _read_waloader_section(root, "executables").get("uv_binary", "")
 
 
 def _run(cmd: list, cwd: Path, env: dict | None = None) -> tuple:
@@ -461,7 +474,7 @@ def push(root: Path, conn: dict, *, use_git: bool = True, restart: bool = True,
                 "--{0}".format(required)
             )
     remote_dir = str(conn["remote_dir"]).rstrip("/")
-    uv = conn.get("uv", "uv")
+    uv = conn.get("uv") or ""  # empty -> server resolves from waloader.toml
     dest = _dest(conn)
     ssh_bin = conn.get("ssh") or "ssh"
     scp_bin = conn.get("scp") or "scp"
@@ -475,12 +488,13 @@ def push(root: Path, conn: dict, *, use_git: bool = True, restart: bool = True,
     env_flags = []
     for key, value in env_map.items():
         env_flags += ["--env", shlex.quote("{0}={1}".format(key, value))]
+    uv_flags = ["--uv", shlex.quote(uv)] if uv else []  # empty -> server resolves
     apply_inner = " ".join([
         shlex.quote(remote_python),
         shlex.quote(staging + "/deploy.py"), "apply",
         shlex.quote(staging + "/payload.tar.gz"),
         "--root", shlex.quote(remote_dir),
-        "--uv", shlex.quote(uv),
+    ] + uv_flags + [
         "--restart" if restart else "--no-restart",
     ] + ([] if run_migrate else ["--no-migrate"]) + env_flags)
     remote_mkdir = "mkdir -p " + shlex.quote(staging)
@@ -553,7 +567,9 @@ def main(argv: list | None = None) -> int:
     app = sub.add_parser("apply", help="apply a tarball to an install (server)")
     app.add_argument("tarball")
     app.add_argument("--root", default=".")
-    app.add_argument("--uv", default="uv")
+    app.add_argument("--uv", default="",
+                     help="server uv binary (default: read from waloader.toml "
+                          "[executables].uv_binary, else 'uv')")
     app.add_argument("--env", action="append", default=[], metavar="KEY=VALUE",
                      help="env var for uv (repeatable); e.g. --env UV_CONFIG_FILE=/p/uv.toml")
     app.add_argument("--dry-run", action="store_true")
