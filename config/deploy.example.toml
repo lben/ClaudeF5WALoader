@@ -1,22 +1,29 @@
 # Deployment target for `python -m waloader.tools.deploy push`.
 #
-# Copy to config/deploy.toml (git-ignored) and fill in your server. All values
+# Copy to config/deploy.toml (git-ignored) and fill in YOUR server. All values
 # can also be passed as CLI flags (--host, --remote-dir, ...). Auth uses your
-# system ssh/scp: if you normally type a password to reach the box, you'll be
-# prompted once; if you use a key/agent, it's fully unattended.
+# system ssh/scp: if you normally type a password to reach the box you'll be
+# prompted once; if you use a key/agent it's fully unattended.
 #
-# NEVER commit config/deploy.toml (it names your server, possibly a key path).
+# NEVER commit config/deploy.toml — it names your internal server.
 
 [remote]
-host = "bdnyr006x05h5"                       # hostname or IP of the Red Hat box
-user = "bl81398"                             # optional; omit to use ssh defaults
-# port = 22                                  # optional
-# identity_file = "~/.ssh/id_ed25519"        # optional; omit to use agent/password
+host = "your-server-hostname-or-ip"          # e.g. the box you scp into
+user = "your-username"                        # optional; omit to use ssh defaults
+# port = 22                                   # optional
+# identity_file = "~/.ssh/id_ed25519"         # optional; omit for agent/password
 
 # Absolute path to the WALoader project directory ON the server (the one that
-# already contains pyproject.toml, config/waloader.toml and data/).
-remote_dir = "/home/bl81398/ClaudeF5WALoader"
+# already has pyproject.toml, config/waloader.toml and data/).
+remote_dir = "/home/your-username/waloader"
 
 # The uv binary on the server. Use an absolute path if a non-interactive ssh
-# session doesn't find `uv` on PATH (e.g. "/home/bl81398/.local/bin/uv").
+# session can't find `uv` on PATH (e.g. "/home/you/.local/bin/uv").
 uv = "uv"
+
+# Local ssh/scp binaries. Leave unset to use the OpenSSH client on your PATH.
+# On Windows without OpenSSH, point these at another client, e.g. Git for Windows:
+#   ssh = "C:/Program Files/Git/usr/bin/ssh.exe"
+#   scp = "C:/Program Files/Git/usr/bin/scp.exe"
+# ssh = "ssh"
+# scp = "scp"

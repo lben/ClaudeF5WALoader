@@ -47,6 +47,28 @@ running throughout; the WALoader UI comes back on the new version.
 `--no-restart` updates files only (prints the restart command);
 `--no-migrate` skips migrations.
 
+**Run WALoader via `serve --daemon`, not in the foreground.** The auto-restart
+manages the daemon (pidfile-tracked). If a foreground `serve` is holding the
+port, the restart can't stop it and the new daemon fails to bind — stop the
+foreground one yourself, or switch to `serve --daemon`
+(see `docs/process-management.md`).
+
+### Windows: "ssh not found" / crashes on push
+
+`push` uses your system `ssh`/`scp`. If your Python can't see them (common
+when you reach the box via Git Bash or PuTTY rather than Windows OpenSSH),
+push now stops with a clear message. Either install the OpenSSH client
+(Settings → Apps → Optional Features → OpenSSH Client) or point deploy at an
+existing client in `config/deploy.toml`:
+
+```toml
+ssh = "C:/Program Files/Git/usr/bin/ssh.exe"
+scp = "C:/Program Files/Git/usr/bin/scp.exe"
+```
+
+(Or skip push and use the manual **package + apply** flow below — it needs no
+SSH automation.)
+
 ## Server-side apply (if you prefer manual scp)
 
 Don't want SSH automation? Build the tarball here and apply it on the box —

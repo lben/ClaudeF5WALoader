@@ -598,3 +598,33 @@
   troubleshooting RHEL runbook cross-link.
 - **Validation:** unit 412 passed (+13); ruff clean; deploy.py parses and has
   no walrus/match/capture_output/text= (3.6-safe).
+
+## 2026-07-06 — deploy tool: Windows fixes + genericized example
+
+- **Bug (field, Windows):** `deploy push` crashed with a raw
+  FileNotFoundError [WinError 2] at the first `subprocess.run(["ssh", ...])` —
+  ssh not on the PATH the Python process saw (user reaches the box via Git
+  Bash/PuTTY, not Windows OpenSSH). Now: `_require_binary` preflights ssh/scp
+  (shutil.which or absolute-path existence) with an actionable error (install
+  OpenSSH, or set ssh/scp to Git-for-Windows paths, or use manual
+  package+apply); all ssh/scp spawns wrapped to convert OSError → DeployError.
+- **Second Windows bug found in review (would hit next):** scp reads a local
+  `C:\...\payload.tar.gz` as host `C`. Fixed by copying deploy.py next to the
+  tarball and running scp with cwd=staging and BARE filenames (no drive
+  letter/backslashes). Regression-tested.
+- **Config keys added:** `ssh` / `scp` binary overrides (deploy.toml + --ssh/
+  --scp flags); identity_file now expanduser'd. Remote command construction
+  simplified to a single `bash -lc <quoted>` arg (one level of quoting) for
+  robustness.
+- **Genericized config/deploy.example.toml** — it had contained the user's
+  real internal hostname/user/path (inferred from earlier screenshots and
+  baked in as if placeholders); replaced with obvious placeholders so no
+  internal detail sits in git. (Answered the user's "how did you know the
+  host?" — that was the source.)
+- **Docs:** deploying-updates.md gained a Windows ssh-not-found section and a
+  "run via serve --daemon, not foreground" restart caveat (a foreground serve
+  holding the port makes the managed daemon restart collide).
+- **Tests:** +4 (missing-ssh actionable error, absolute-path must-exist,
+  scp-uses-bare-filenames regression, custom ssh/scp binaries respected).
+- **Validation:** unit 416 passed (+4); ruff clean; self-package still ships
+  deploy.py + example config with zero data//config leaks.

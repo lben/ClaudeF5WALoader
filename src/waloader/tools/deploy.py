@@ -340,9 +340,18 @@ def _load_deploy_conf(root: Path, path: Path | None) -> dict:
 def _ssh_opts(conn: dict) -> list:
     opts = []
     if conn.get("identity_file"):
-        opts += ["-i", str(conn["identity_file"])]
+        opts += ["-i", os.path.expanduser(str(conn["identity_file"]))]
     if conn.get("port"):
         opts += ["-p", str(conn["port"])]  # scp uses -P; handled separately
+    return opts
+
+
+def _scp_opts(conn: dict) -> list:
+    opts = []
+    if conn.get("identity_file"):
+        opts += ["-i", os.path.expanduser(str(conn["identity_file"]))]
+    if conn.get("port"):
+        opts += ["-P", str(conn["port"])]  # NOTE: capital P for scp
     return opts
 
 
@@ -350,6 +359,41 @@ def _dest(conn: dict) -> str:
     host = conn["host"]
     user = conn.get("user")
     return "{0}@{1}".format(user, host) if user else host
+
+
+def _require_binary(name: str, label: str) -> None:
+    """Fail early and helpfully if ssh/scp can't be launched (the WinError 2
+    the raw traceback showed)."""
+    if os.path.isabs(name) or os.sep in name or (os.altsep and os.altsep in name):
+        if not Path(name).exists():
+            raise DeployError("{0} binary not found at: {1}".format(label, name))
+        return
+    if shutil.which(name) is None:
+        raise DeployError(
+            "'{0}' was not found on PATH, so push cannot reach the server.\n"
+            "Fixes:\n"
+            "  - Windows: install the OpenSSH client (Settings > Apps > Optional "
+            "Features > OpenSSH Client), then reopen your terminal; or\n"
+            "  - point deploy at an existing client, e.g. Git for Windows, by "
+            "adding to config/deploy.toml:\n"
+            "        ssh = \"C:/Program Files/Git/usr/bin/ssh.exe\"\n"
+            "        scp = \"C:/Program Files/Git/usr/bin/scp.exe\"\n"
+            "  - or skip push entirely and use the manual package + apply flow "
+            "(see docs/deploying-updates.md).".format(name)
+        )
+
+
+def _run_or_raise(cmd: list, label: str, cwd: Path | None = None,
+                  check: bool = True) -> int:
+    try:
+        rc = subprocess.run(cmd, cwd=str(cwd) if cwd else None).returncode
+    except OSError as exc:
+        raise DeployError(
+            "could not run {0} ({1}): {2}".format(label, cmd[0], exc)
+        ) from exc
+    if check and rc != 0:
+        raise DeployError("{0} failed (exit {1})".format(label, rc))
+    return rc
 
 
 def push(root: Path, conn: dict, *, use_git: bool = True, restart: bool = True,
@@ -364,62 +408,57 @@ def push(root: Path, conn: dict, *, use_git: bool = True, restart: bool = True,
     remote_dir = str(conn["remote_dir"]).rstrip("/")
     uv = conn.get("uv", "uv")
     dest = _dest(conn)
-    ssh = ["ssh"] + _ssh_opts(conn)
-    scp_opts = []
-    if conn.get("identity_file"):
-        scp_opts += ["-i", str(conn["identity_file"])]
-    if conn.get("port"):
-        scp_opts += ["-P", str(conn["port"])]
+    ssh_bin = conn.get("ssh") or "ssh"
+    scp_bin = conn.get("scp") or "scp"
+    ssh_opts = _ssh_opts(conn)
+    scp_opts = _scp_opts(conn)
+    staging = remote_dir + "/.deploy/incoming"
+
+    # remote commands are quoted for the REMOTE shell (bash on the server).
+    # apply is wrapped in `bash -lc` so the login PATH finds uv.
+    apply_inner = " ".join([
+        shlex.quote(remote_python),
+        shlex.quote(staging + "/deploy.py"), "apply",
+        shlex.quote(staging + "/payload.tar.gz"),
+        "--root", shlex.quote(remote_dir),
+        "--uv", shlex.quote(uv),
+        "--restart" if restart else "--no-restart",
+    ] + ([] if run_migrate else ["--no-migrate"]))
+    remote_mkdir = "mkdir -p " + shlex.quote(staging)
+    remote_apply = "bash -lc " + shlex.quote(apply_inner)
 
     tmp = Path(tempfile.mkdtemp(prefix="waloader-push-"))
-    tarball = tmp / "payload.tar.gz"
-    manifest = create_package(root, tarball, use_git=use_git)
-    print("packaged {0} files (waloader {1})".format(
-        len(manifest["files"]), manifest["waloader_version"] or "?"))
-
-    staging = remote_dir + "/.deploy/incoming"
-    remote_apply = (
-        "{py} {stage}/deploy.py apply {stage}/payload.tar.gz --root {root} "
-        "--uv {uv} {restart} {migrate}".format(
-            py=shlex.quote(remote_python),
-            stage=shlex.quote(staging),
-            root=shlex.quote(remote_dir),
-            uv=shlex.quote(uv),
-            restart="--restart" if restart else "--no-restart",
-            migrate="" if run_migrate else "--no-migrate",
-        )
-    )
-
-    if dry_run:
-        print("[dry-run] would scp payload.tar.gz + deploy.py to {0}:{1}".format(
-            dest, staging))
-        print("[dry-run] would run remotely:\n  {0}".format(remote_apply))
-        shutil.rmtree(str(tmp), ignore_errors=True)
-        return 0
-
-    local_deploy = Path(__file__).resolve()
     try:
-        _check_call(ssh + [dest, "bash", "-lc",
-                           shlex.quote("mkdir -p " + shlex.quote(staging))])
-        target = "{0}:{1}/".format(dest, staging)
-        _check_call(["scp"] + scp_opts + [str(tarball), str(local_deploy), target])
-        print("uploaded; applying on {0} …".format(conn["host"]))
-        rc = _stream_call(
-            ssh + [dest, "bash", "-lc", shlex.quote(remote_apply)]
+        tarball = tmp / "payload.tar.gz"
+        manifest = create_package(root, tarball, use_git=use_git)
+        print("packaged {0} files (waloader {1})".format(
+            len(manifest["files"]), manifest["waloader_version"] or "?"))
+
+        if dry_run:
+            print("[dry-run] upload to:   {0}:{1}/".format(dest, staging))
+            print("[dry-run] remote apply: {0}".format(apply_inner))
+            return 0
+
+        _require_binary(ssh_bin, "ssh")
+        _require_binary(scp_bin, "scp")
+
+        # copy the apply script next to the tarball and scp with cwd=tmp using
+        # BARE filenames — passing a Windows path like C:\...\payload.tar.gz to
+        # scp makes it read `C:` as a hostname. Bare names sidestep that.
+        shutil.copy2(str(Path(__file__).resolve()), str(tmp / "deploy.py"))
+
+        _run_or_raise([ssh_bin] + ssh_opts + [dest, remote_mkdir],
+                      "ssh (mkdir)")
+        _run_or_raise(
+            [scp_bin] + scp_opts + ["payload.tar.gz", "deploy.py",
+                                    dest + ":" + staging + "/"],
+            "scp (upload)", cwd=tmp,
         )
-        return rc
+        print("uploaded; applying on {0} …".format(conn["host"]))
+        return _run_or_raise([ssh_bin] + ssh_opts + [dest, remote_apply],
+                             "remote apply", check=False)
     finally:
         shutil.rmtree(str(tmp), ignore_errors=True)
-
-
-def _check_call(cmd: list) -> None:
-    proc = subprocess.run(cmd)
-    if proc.returncode != 0:
-        raise DeployError("command failed: {0}".format(" ".join(cmd)))
-
-
-def _stream_call(cmd: list) -> int:
-    return subprocess.run(cmd).returncode
 
 
 # --- CLI -------------------------------------------------------------------
@@ -475,6 +514,8 @@ def main(argv: list | None = None) -> int:
     psh.add_argument("--identity")
     psh.add_argument("--remote-dir")
     psh.add_argument("--uv")
+    psh.add_argument("--ssh", help="ssh binary (default: ssh on PATH)")
+    psh.add_argument("--scp", help="scp binary (default: scp on PATH)")
     psh.add_argument("--remote-python", default="python3")
     psh.add_argument("--no-git", action="store_true")
     psh.add_argument("--no-migrate", action="store_true")
@@ -511,7 +552,7 @@ def main(argv: list | None = None) -> int:
             for key, value in (
                 ("host", args.host), ("user", args.user), ("port", args.port),
                 ("identity_file", args.identity), ("remote_dir", args.remote_dir),
-                ("uv", args.uv),
+                ("uv", args.uv), ("ssh", args.ssh), ("scp", args.scp),
             ):
                 if value:
                     conn[key] = value

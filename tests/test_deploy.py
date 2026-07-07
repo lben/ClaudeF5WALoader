@@ -221,7 +221,7 @@ class TestPushDryRun:
         )
         assert rc == 0
         out = capsys.readouterr().out
-        assert "deploy.py apply" in out
+        assert "remote apply:" in out
         assert "/srv/waloader" in out and "--restart" in out
 
     def test_push_requires_host_and_remote_dir(self, tmp_path: Path) -> None:
@@ -229,3 +229,78 @@ class TestPushDryRun:
         _make_install(source, with_runtime=False)
         with pytest.raises(deploy.DeployError, match="remote_dir"):
             deploy.push(source, {"host": "box"}, use_git=False, dry_run=True)
+
+
+class TestPushBinaries:
+    def test_missing_ssh_gives_actionable_error(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        source = tmp_path / "s"
+        _make_install(source, with_runtime=False)
+        monkeypatch.setattr(deploy.shutil, "which", lambda name: None)
+        with pytest.raises(deploy.DeployError, match="not found on PATH"):
+            deploy.push(
+                source, {"host": "box", "remote_dir": "/srv/waloader"},
+                use_git=False,
+            )
+
+    def test_absolute_ssh_path_must_exist(self, tmp_path: Path) -> None:
+        with pytest.raises(deploy.DeployError, match="binary not found at"):
+            deploy._require_binary(str(tmp_path / "nope" / "ssh.exe"), "ssh")
+
+    def test_scp_uses_bare_filenames_not_windows_paths(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """Regression: scp reads C:\\...\\payload as host 'C'. We must scp bare
+        filenames from cwd=staging instead."""
+        source = tmp_path / "s"
+        _make_install(source, with_runtime=False)
+        calls = []
+
+        class _R:
+            returncode = 0
+
+        def fake_run(cmd, cwd=None):
+            calls.append((list(cmd), cwd))
+            return _R()
+
+        monkeypatch.setattr(deploy.subprocess, "run", fake_run)
+        monkeypatch.setattr(deploy.shutil, "which", lambda name: "/usr/bin/" + name)
+
+        rc = deploy.push(
+            source, {"host": "box", "remote_dir": "/srv/waloader", "uv": "uv"},
+            use_git=False,
+        )
+        assert rc == 0
+        scp_calls = [c for c in calls if c[0][0].endswith("scp")]
+        assert len(scp_calls) == 1
+        argv, cwd = scp_calls[0]
+        assert "payload.tar.gz" in argv and "deploy.py" in argv
+        assert cwd is not None                       # ran from the staging dir
+        assert not any("\\" in a or a[1:2] == ":" for a in argv)  # no C:\ paths
+        assert argv[-1] == "box:/srv/waloader/.deploy/incoming/"
+
+    def test_custom_ssh_scp_binaries_respected(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        source = tmp_path / "s"
+        _make_install(source, with_runtime=False)
+        calls = []
+
+        class _R:
+            returncode = 0
+
+        monkeypatch.setattr(deploy.subprocess, "run",
+                            lambda cmd, cwd=None: calls.append(list(cmd)) or _R())
+        monkeypatch.setattr(deploy.shutil, "which", lambda name: name)
+        monkeypatch.setattr(Path, "exists", lambda self: True)
+
+        deploy.push(
+            source,
+            {"host": "box", "remote_dir": "/srv/w",
+             "ssh": "C:/Program Files/Git/usr/bin/ssh.exe",
+             "scp": "C:/Program Files/Git/usr/bin/scp.exe"},
+            use_git=False,
+        )
+        assert any(c[0].endswith("ssh.exe") for c in calls)
+        assert any(c[0].endswith("scp.exe") for c in calls)
