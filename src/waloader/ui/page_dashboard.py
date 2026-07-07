@@ -25,6 +25,20 @@ def _confirm_key(app_id: int) -> str:
     return f"confirm_action_{app_id}"
 
 
+def _request_confirm(app_id: int, action: str) -> None:
+    """Show the confirmation step for an action. MUST use a fragment-scoped
+    rerun: a plain st.rerun() closes the st.dialog (that was the 'modal
+    disappears when I click Restart' bug), fragment scope re-renders the dialog
+    in place."""
+    st.session_state[_confirm_key(app_id)] = action
+    st.rerun(scope="fragment")
+
+
+def _dismiss_confirm(app_id: int) -> None:
+    st.session_state.pop(_confirm_key(app_id), None)
+    st.rerun(scope="fragment")
+
+
 @st.dialog("Configure app", width="large")
 def _gear_dialog(app_id: int) -> None:
     config = common.current_config()
@@ -68,7 +82,18 @@ def _gear_dialog(app_id: int) -> None:
             common.toast_now(
                 f"Users Management Support {'enabled' if enabled else 'disabled'} "
                 f"for '{app.name}'"
-                + (" — the app now requires login" if enabled else "")
+            )
+            st.rerun(scope="fragment")
+
+        if app.user_mgmt_enabled and not app_users_service.code_enforces_login(
+            config, app
+        ):
+            st.warning(
+                "⚠ Users Management Support is ON, but this app's code never "
+                "calls `require_login()`, so it will NOT ask visitors to log "
+                "in. Ask your assistant to add the login gate (regenerate with "
+                "the current authoring kit), then use **Update code** above. "
+                "Manage the accounts on the **App users** page meanwhile."
             )
 
         link_columns = st.columns(2)
@@ -107,7 +132,7 @@ def _gear_dialog(app_id: int) -> None:
                     actor=user.username,
                 )
                 st.session_state[f"exp_path_{app.id}"] = str(path)
-                st.rerun()
+                st.rerun(scope="fragment")  # stay in the dialog to show download
             exported = st.session_state.get(f"exp_path_{app.id}")
             if exported:
                 from pathlib import Path
@@ -155,34 +180,31 @@ def _gear_dialog(app_id: int) -> None:
                             f"'{app.name}' deleted — archived and recoverable "
                             "until retention expires"
                         )
-                st.rerun()
+                st.rerun()  # action done: close dialog, dashboard shows the flash
             if cancel.button("Cancel", key=f"cancel_{app.id}"):
-                st.session_state.pop(_confirm_key(app.id), None)
-                st.rerun()
+                _dismiss_confirm(app.id)  # back to the action buttons, stay open
         else:
             running = processes.is_app_running(conn, app)
             columns = st.columns(4)
             if columns[0].button("Stop", disabled=not running,
                                  key=f"stop_{app.id}"):
-                st.session_state[_confirm_key(app.id)] = "stop"
-                st.rerun()
+                _request_confirm(app.id, "stop")
             if columns[1].button("Resume", disabled=running or
                                  app.current_version is None,
                                  key=f"resume_{app.id}"):
-                st.session_state[_confirm_key(app.id)] = "resume"
-                st.rerun()
+                _request_confirm(app.id, "resume")
             if columns[2].button("Restart", disabled=not running,
                                  key=f"restart_{app.id}"):
-                st.session_state[_confirm_key(app.id)] = "restart"
-                st.rerun()
+                _request_confirm(app.id, "restart")
             if columns[3].button("Delete", key=f"delete_{app.id}"):
-                st.session_state[_confirm_key(app.id)] = "delete"
-                st.rerun()
+                _request_confirm(app.id, "delete")
 
 
 def _render_card(config, conn, app) -> None:
     with st.container(border=True):
-        title, gear = st.columns([6, 1], vertical_alignment="center")
+        # top-align so the gear sits next to the first line of the name even
+        # when a long name wraps (center-align left it floating in the gap)
+        title, gear = st.columns([5, 1], vertical_alignment="top")
         title.markdown(f"**{app.name}**")
         if gear.button("⚙️", key=f"gear_{app.id}", help="Configure this app"):
             _gear_dialog(app.id)
@@ -201,6 +223,10 @@ def _render_card(config, conn, app) -> None:
             st.caption(f"last healthy: {rt.last_healthy_at}")
         if deployment.needs_rebuild(config, app):
             st.caption("⚠ rebuild required (gear → Rebuild now)")
+        if app.user_mgmt_enabled and not app_users_service.code_enforces_login(
+            config, app
+        ):
+            st.caption("⚠ login ON but not enforced by the app code (gear ⚙️)")
         if app.state in ("failed", "deployment_failed") and rt and rt.last_failure_reason:
             st.caption(f"⚠ {rt.last_failure_reason}")
         if app.port and app.state == "running":

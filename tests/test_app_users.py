@@ -30,6 +30,48 @@ class TestToggle:
         assert not aus.login_required(app)
 
 
+class TestCodeEnforcesLogin:
+    """Detect apps that turned on user mgmt but whose code never calls the
+    login SDK (WALoader can't inject login) — the field bug where enabling the
+    toggle silently did nothing."""
+
+    def _version_with_source(self, conn, config, app, source_text: str) -> None:
+        src = layout.source_dir(config, app.slug, 1)
+        src.mkdir(parents=True, exist_ok=True)
+        (src / "app.py").write_text(source_text, encoding="utf-8")
+        from waloader.repositories import versions as versions_repo
+
+        versions_repo.create(
+            conn, app_id=app.id, version_number=1,
+            manifest={"entrypoint": "app.py"},
+            bundle_path=f"apps/{app.slug}/versions/000001/uploaded_bundle.md",
+            source_path=layout.relativize(config, src), created_by=app.owner_id,
+        )
+        apps_repo.set_current_version(conn, app.id, 1)
+        conn.commit()
+
+    def test_false_when_code_lacks_require_login(self, conn, config, app) -> None:
+        self._version_with_source(conn, config, app,
+                                  "import streamlit as st\nst.title('hi')\n")
+        assert aus.code_enforces_login(config, apps_repo.get(conn, app.id)) is False
+
+    def test_true_when_code_calls_require_login(self, conn, config, app) -> None:
+        self._version_with_source(
+            conn, config, app,
+            "from waloader_sdk.auth import require_login\nrequire_login()\n",
+        )
+        assert aus.code_enforces_login(config, apps_repo.get(conn, app.id)) is True
+
+    def test_true_via_module_reference(self, conn, config, app) -> None:
+        self._version_with_source(
+            conn, config, app, "import waloader_sdk.auth as a\na.require_login()\n"
+        )
+        assert aus.code_enforces_login(config, apps_repo.get(conn, app.id)) is True
+
+    def test_false_without_a_version(self, conn, config, app) -> None:
+        assert aus.code_enforces_login(config, app) is False  # current_version None
+
+
 class TestCrud:
     def test_create(self, conn, app: App, app_user) -> None:
         assert app_user.username == "jdoe"

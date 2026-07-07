@@ -42,6 +42,32 @@ def login_required(app: App) -> bool:
     return bool(app.user_mgmt_enabled)
 
 
+LOGIN_SDK_MARKERS = ("require_login", "waloader_sdk.auth")
+
+
+def code_enforces_login(config: WALoaderConfig, app: App) -> bool:
+    """Whether the app's current-version source actually calls the login SDK.
+
+    WALoader cannot inject login into arbitrary child code — the app must call
+    ``require_login()`` itself. If Users Management Support is ON but this is
+    False, the setting is silently ignored, so the UI warns the owner. Scans
+    the reconstructed source of the current version for the SDK markers.
+    """
+    if app.current_version is None:
+        return False
+    source = layout.source_dir(config, app.slug, app.current_version)
+    if not source.exists():
+        return False
+    for py in source.rglob("*.py"):
+        try:
+            text = py.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        if any(marker in text for marker in LOGIN_SDK_MARKERS):
+            return True
+    return False
+
+
 def create_app_user(
     conn: sqlite3.Connection,
     app: App,

@@ -679,3 +679,40 @@
 - **Tests:** +2 (auto-read uv_binary from [executables]; precedence: unset →
   waloader.toml value, set → override wins).
 - **Validation:** unit 421 passed; ruff clean.
+
+## 2026-07-07 — Field usability round 2: gear dialog, user-mgmt visibility, centering
+
+- **Root-caused live in the preview browser** (not just from code): reproduced
+  each bug before fixing.
+- **Restart/Stop/Resume/Delete confirmation closed the modal:** the confirm-
+  setting buttons called plain `st.rerun()`, which CLOSES an st.dialog
+  (documented Streamlit behavior; confirmed on 1.58). Fix: fragment-scoped
+  rerun (`st.rerun(scope="fragment")`) re-renders the dialog in place. Extracted
+  `_request_confirm`/`_dismiss_confirm` helpers so the fragment-scope is
+  directly unit-tested (a plain rerun would fail the test). Export "Create
+  archive" had the same latent bug (closed before showing the download) — also
+  fragment-scoped now. Verified live: clicking Restart now keeps the dialog
+  open and shows "Really restart '…'?" with Yes/Cancel; Cancel returns to the
+  actions; both without closing.
+- **Enabling Users Management did nothing:** the SDK is correct — but the app's
+  code must call `require_login()`, and pre-kit apps don't, so WALoader (which
+  can't inject login into child code) silently ignored the toggle. Added
+  `app_users_service.code_enforces_login(config, app)` (scans the current
+  version source for require_login / waloader_sdk.auth) and surfaced a clear
+  warning on the card ("⚠ login ON but not enforced by the app code") and in
+  the gear dialog (what it means + how to fix: regenerate with the kit →
+  Update code). Verified live.
+- **Gear not centered:** with a long, wrapping app name and center alignment
+  the gear floated in the gap between the two lines. Changed the header row to
+  `vertical_alignment="top"` (and [5,1]) so the gear sits next to the first
+  line. Verified live.
+- **Verification aid:** sidebar now shows `platform vX.Y.Z` so an update is
+  visible in the UI, not just the CLI.
+- **Tests (the ones that should have caught these):** code_enforces_login
+  (4 cases); dashboard AppTest — confirmation renders in the open dialog vs.
+  plain action buttons, login-not-enforced warning shown/hidden across the
+  three states, confirm-helper fragment-scope guards, gear top-alignment.
+  Learned AppTest can't model a dialog persisting across a fragment rerun, so
+  the flow is tested in two halves + the helper-level scope guard.
+- **Validation:** unit 433 passed (+14); e2e 4 passed; ruff clean; all three
+  fixes confirmed in a real browser via the preview harness.
