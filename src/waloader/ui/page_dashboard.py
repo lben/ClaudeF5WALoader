@@ -66,6 +66,12 @@ def _gear_dialog(app_id: int) -> None:
                     )
                 app = apps_repo.get(conn, app.id)
                 common.store_deploy_outcome(app, result, health.app_url(config, app))
+                common.flash(
+                    f"'{app.name}' updated" if result.ok
+                    else f"'{app.name}' update failed — retry from the panel",
+                    icon="✅" if result.ok else "⚠️",
+                )
+                nav.switch("dashboard")  # show the outcome on the dashboard
                 st.rerun()
 
         # --- user management toggle ---------------------------------------
@@ -120,6 +126,12 @@ def _gear_dialog(app_id: int) -> None:
                                                     actor_id=user.id)
                 app = apps_repo.get(conn, app.id)
                 common.store_deploy_outcome(app, result, health.app_url(config, app))
+                common.flash(
+                    f"'{app.name}' rebuilt" if result.ok
+                    else f"'{app.name}' rebuild failed — retry from the panel",
+                    icon="✅" if result.ok else "⚠️",
+                )
+                nav.switch("dashboard")
                 st.rerun()
 
         # --- export ----------------------------------------------------------

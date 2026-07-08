@@ -9,11 +9,29 @@ from waloader.services import deployment, health, slugs
 from waloader.ui import common, nav
 
 
+def submit_new_app(config, user, *, name, description, user_mgmt, bundle_bytes,
+                   **seams):
+    """Create + deploy a new app and store its outcome. Raises
+    AppCreationError for pre-deploy validation problems (name taken, etc.).
+    Returns (app, DeployResult). Extracted so the create flow is testable
+    without driving the file-uploader widget."""
+    with common.open_conn(config) as conn:
+        app, result = deployment.create_app_and_deploy(
+            conn, config, owner=user, name=name, description=description,
+            user_mgmt_enabled=user_mgmt, bundle_bytes=bundle_bytes, **seams,
+        )
+        app = apps_repo.get(conn, app.id)
+        common.store_deploy_outcome(app, result, health.app_url(config, app))
+    return app, result
+
+
 def render() -> None:
     config = common.current_config()
     user = common.current_user(config)
     st.header("Create new app")
-    common.render_deploy_outcome(config, user)
+    # NB: the deploy outcome (success URL / failure+retry) is shown on the
+    # DASHBOARD, never here — otherwise the create screen carries a stale
+    # result from a previous deploy. Every create attempt redirects there.
 
     name = st.text_input("App name", placeholder="e.g. Client Positions Dashboard")
     availability = None
@@ -48,28 +66,27 @@ def render() -> None:
         name.strip() and availability and availability.available and bundle is not None
     )
     if st.button("Create app", type="primary", disabled=not can_submit):
-        with common.open_conn(config) as conn:
+        try:
             with st.spinner(
                 f"Deploying {name.strip()}… (first deployments install "
                 "dependencies and can take a few minutes)"
             ):
-                try:
-                    app, result = deployment.create_app_and_deploy(
-                        conn, config,
-                        owner=user,
-                        name=name,
-                        description=description,
-                        user_mgmt_enabled=user_mgmt,
-                        bundle_bytes=bundle.getvalue(),
-                    )
-                except deployment.AppCreationError as exc:
-                    st.error(str(exc))
-                    return
-            app = apps_repo.get(conn, app.id)
-            common.store_deploy_outcome(app, result, health.app_url(config, app))
+                app, result = submit_new_app(
+                    config, user, name=name, description=description,
+                    user_mgmt=user_mgmt, bundle_bytes=bundle.getvalue(),
+                )
+        except deployment.AppCreationError as exc:
+            st.error(str(exc))  # pre-deploy validation (name taken) — fix and retry
+            return
+        # a create attempt always lands on the dashboard, which shows the
+        # outcome (success URL, or failure + retry-upload). The create screen
+        # never carries a result.
         if result.ok:
-            # land on the dashboard with the success panel — staying on the
-            # (now reset) create form was confusing in field testing
             common.flash(f"'{app.name}' deployed successfully")
-            nav.switch("dashboard")
+        else:
+            common.flash(
+                f"'{app.name}' created but the deployment failed — "
+                "fix and retry from the panel on the dashboard", icon="⚠️",
+            )
+        nav.switch("dashboard")
         st.rerun()

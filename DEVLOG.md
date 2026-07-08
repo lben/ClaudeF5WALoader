@@ -750,3 +750,34 @@
   new git probe.
 - **Validation:** unit 440 passed; ruff clean; gear centering + badge
   confirmed in a real browser via the preview harness.
+
+## 2026-07-07 — Field round 4: create flow — no stale outcome, redirect to dashboard
+
+- **Bug (field):** after creating/deploying a new app the user stayed on the
+  Create screen, which was still showing the PREVIOUS app's "deployed
+  successfully" panel. Root cause: page_create rendered the shared
+  render_deploy_outcome (so any lingering session outcome showed on Create),
+  and the deploy outcome was a cross-page session object.
+- **Verified live first:** confirmed nav.switch works (gear → Manage Dataset
+  Concepts navigates to the Datasets page and closes the dialog), so the
+  redirect mechanism was sound; the real defect was the outcome panel on the
+  create screen.
+- **Fix (design):** the deploy outcome now lives on the DASHBOARD only, and
+  every deploy attempt redirects there. page_create: removed
+  render_deploy_outcome; extracted submit_new_app() (create+deploy+store,
+  testable without the file-uploader widget); a create attempt always
+  nav.switch("dashboard") + flash (success or "created but deploy failed —
+  retry from the panel"), except pre-deploy AppCreationError (name taken)
+  which stays on Create with an inline error. Gear "Deploy update" and
+  "Rebuild" also redirect to the dashboard + flash, so a deploy result is
+  never stranded on another screen. Verified live: create page renders with
+  no outcome panel.
+- **Human-flow tests (per the AGENTS mandate):** test_ui_create.py —
+  submit_new_app creates+deploys+stores outcome; a new create OVERWRITES the
+  previous stored outcome (the exact "previous app's message lingered" bug);
+  duplicate name raises before deploy; the create screen never renders a
+  deploy outcome even when one is in session (the direct regression guard);
+  source guards that create calls nav.switch("dashboard") and no longer calls
+  render_deploy_outcome.
+- **Validation:** unit 445 passed (+5); e2e 4 passed; ruff clean; create page
+  + nav.switch confirmed in a real browser.
